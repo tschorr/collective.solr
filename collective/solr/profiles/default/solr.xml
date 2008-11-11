@@ -14,5 +14,6 @@
     <required-query-parameters>
       <parameter name="SearchableText" />
     </required-query-parameters>
+    <batch-size value="100" />
   </settings>
 </object>

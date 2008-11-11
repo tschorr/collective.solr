@@ -33,6 +33,7 @@ class SolrConfigXMLAdapter(XMLAdapterBase):
         self.context.search_timeout = 0
         self.context.max_results = 0
         self.context.required = []
+        self.context.batch_size = 100
 
     def _initProperties(self, node):
         elems = node.getElementsByTagName('connection')
@@ -72,6 +73,9 @@ class SolrConfigXMLAdapter(XMLAdapterBase):
                     for elem in child.getElementsByTagName('parameter'):
                         value.append(elem.getAttribute('name'))
                     self.context.required = tuple(map(str, value))
+                elif child.nodeName == 'batch-size':
+                    value = int(str(child.getAttribute('value')))
+                    self.context.batch_size = value
 
     def _createNode(self, name, value):
         node = self._doc.createElement(name)
@@ -99,6 +103,7 @@ class SolrConfigXMLAdapter(XMLAdapterBase):
             param = self._doc.createElement('parameter')
             param.setAttribute('name', name)
             required.appendChild(param)
+        settings.appendChild(self._createNode('batch-size', str(self.context.batch_size)))
         return node
 
 

@@ -45,6 +45,13 @@ class ISolrSchema(Interface):
                           'Leave empty to dispatch all searches.'),
         value_type = TextLine(), default = [], required = False)
 
+    batch_size = Int(title=_(u'Results Batch Size'),
+        description = _(u'This is the max number of results that will be '
+                         'returned from solr at once. This should be set to a '
+                         'value that is a multiple of your search page batch '
+                         'size.'),
+        default=100, required=True)
+
 
 class ISolrConnectionConfig(ISolrSchema):
     """ utility to hold the connection configuration for the solr server """

@@ -42,6 +42,105 @@ class SearchDispatcher(object):
         return ZCatalog.searchResults(self.context, request, **keywords)
 
 
+class BatchedResults(object):
+
+    def __init__(self, search, query, batch_size, request, offset=0,
+            end=None, **params):
+        self._search = search
+        self._query = query
+        self._batch_size = batch_size
+        self._params = params.copy()
+        if 'rows' in params:
+            self._limit = limit = params['rows']
+        else:
+            self._limit = limit = None
+        if limit is not None and  limit < batch_size:
+            self._batch_size = limit
+        self._request = request
+        self._total = None
+        self._offset = offset
+        self._end = end
+        # do first search
+        self._doSearch()
+
+    def __len__(self):
+        if self._total is None:
+            self._doSearch()
+        return self._total
+
+    def __getitem__(self, index):
+        length = len(self)
+        if isinstance(index, slice):
+            params = self._params.copy()
+            start = index.start
+            if start is None:
+                start = 0
+            if start < 0:
+                start = length + start
+            end = index.stop
+            if end is None:
+                end = length - 1
+            if end < 0:
+                end = length + end
+            if end < start:
+                raise ValueError('end may not be less than start')
+            return BatchedResults(self._search, self._query, self._batch_size,
+                    self._request, offset=start, end=end, **params)
+        if index >= length:
+            raise IndexError('list index out of range')
+        if index < 0:
+            index = length + index
+        start = self._start
+        end = start + self._batch_size - 1
+        if index < start or index > end:
+            self._doSearch(index=index)
+        index = index - start
+        return self._wrap(self._results[index])
+
+    def _wrap(self, flare):
+        adapter = queryMultiAdapter((flare, self._request), IFlare)
+        return adapter is not None and adapter or flare
+
+    def __iter__(self):
+        wrap = self._wrap
+        if self._start:
+            self._doSearch()
+        index = 0
+        while index < len(self):
+            yield self[index]
+            index += 1
+
+    def _doSearch(self, index=None):
+        search = self._search
+        query = self._query
+        params = self._params.copy()
+        start = 0
+        size = self._batch_size
+        limit = self._limit
+        if index is not None:
+            start = (index / size) * size
+        self._start = params['start'] = start + self._offset
+        params['rows'] = size
+        end = start + size - 1
+        if self._end and end > self._end:
+            params['rows'] = self._end - start + 1
+            end = self._end
+        if limit is not None:
+            if end >= limit:
+                params['rows'] = limit - start
+        self._results = results = search(query, fl='* score', **params)
+        if self._total is None:
+            total = int(results.numFound)
+            if limit is not None and self._end is not None:
+                self._total = min(total, limit, (self._end - self._offset + 1))
+            elif self._end is not None:
+                self._total = min(total, (self._end - self._offset + 1))
+            elif limit is not None:
+                self._total = min(total, limit)
+            else:
+                self._total = total
+
+
 def solrSearchResults(request=None, **keywords):
     """ perform a query using solr after translating the passed in
         parameters with portal catalog semantics """
@@ -73,10 +172,12 @@ def solrSearchResults(request=None, **keywords):
     query = search.buildQuery(**args)
     schema = search.getManager().getSchema() or {}
     params = cleanupQueryParameters(extractQueryParameters(args), schema)
-    results = search(query, fl='* score', **params)
-    def wrap(flare):
-        """ wrap a flare object with a helper class """
-        adapter = queryMultiAdapter((flare, request), IFlare)
-        return adapter is not None and adapter or flare
-    return map(wrap, results)
+    return BatchedResults(search, query, config.batch_size, request,
+            **params)
+    #results = search(query, fl='* score', **params)
+    #def wrap(flare):
+    #    """ wrap a flare object with a helper class """
+    #    adapter = queryMultiAdapter((flare, request), IFlare)
+    #    return adapter is not None and adapter or flare
+    #return map(wrap, results)
 

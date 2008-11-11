@@ -112,6 +112,17 @@ class SolrControlPanelAdapter(SchemaAdapterBase):
 
     required = property(getRequiredParameters, setRequiredParameters)
 
+    def getBatchSize(self):
+        util = queryUtility(ISolrConnectionConfig)
+        return getattr(util, 'batch_size', '')
+
+    def setBatchSize(self, value):
+        util = queryUtility(ISolrConnectionConfig)
+        if util is not None:
+            util.batch_size = value
+
+    batch_size = property(getBatchSize, setBatchSize)
+
 
 class SolrControlPanel(ControlPanelForm):
 
