@@ -54,7 +54,11 @@ class SolrIndexQueueProcessor(Persistent):
             if schema is None:
                 logger.warning('unable to fetch schema, skipping indexing of %r', obj)
                 return
-            if data.get(schema['uniqueKey'], None) is not None and not missing:
+            uniqueKey = schema.get('uniqueKey', None)
+            if uniqueKey is None:
+                logger.warning('schema is missing unique key, skipping indexing of %r', obj)
+                return
+            if data.get(uniqueKey, None) is not None and not missing:
                 try:
                     logger.debug('indexing %r (%r)', obj, data)
                     conn.add(**data)
@@ -71,7 +75,10 @@ class SolrIndexQueueProcessor(Persistent):
             if schema is None:
                 logger.warning('unable to fetch schema, skipping unindexing of %r', obj)
                 return
-            uniqueKey = schema['uniqueKey']
+            uniqueKey = schema.get('uniqueKey', None)
+            if uniqueKey is None:
+                logger.warning('schema is missing unique key, skipping unindexing of %r', obj)
+                return
             data, missing = self.getData(obj, attributes=[uniqueKey])
             prepareData(data)
             if not data.has_key(uniqueKey):

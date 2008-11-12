@@ -1,8 +1,23 @@
 Changelog
 =========
 
-1.0b2 - Unreleased
+1.0b3 - Unreleased
 ------------------
+
+* Fix issue regarding quoting of white space when searching.
+  [witsch]
+
+* Make indexing operations more robust in case the schema is missing a
+  unique key or couldn't be parsed.
+  [witsch]
+
+
+1.0b2 - Released November 7, 2008
+---------------------------------
+
+* Make schema retrieval slightly more robust to not let network failures
+  prevent access to the site.
+  [witsch]
 
 
 1.0b1 - Released November 5, 2008

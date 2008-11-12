@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from unittest import TestCase, TestSuite, makeSuite, main
+from unittest import TestCase, defaultTestLoader, main
 from DateTime import DateTime
 from zope.component import provideUtility
 
@@ -27,6 +27,8 @@ class QuoteTests(TestCase):
         self.assertEqual(quote('\\'), '"\\"')
         self.assertEqual(quote('-+&|!^~*?:'), '"\\-\\+\\&\\|\\!\\^\\~\\*\\?\\:"')
         self.assertEqual(quote('john@foo.com'), '"john@foo.com"')
+        self.assertEqual(quote(' '), '" "')
+        self.assertEqual(quote(''), '""')
 
     def testQuoted(self):
         self.assertEqual(quote('"'), '')
@@ -37,6 +39,8 @@ class QuoteTests(TestCase):
         self.assertEqual(quote('"foo bar"'), 'foo bar')
         self.assertEqual(quote('"foo bar?"'), 'foo bar?')
         self.assertEqual(quote('"-foo +bar"'), '-foo +bar')
+        self.assertEqual(quote('" "'), '" "')
+        self.assertEqual(quote('""'), '')
 
     def testUnicode(self):
         self.assertEqual(quote('foø'), '"fo\xc3\xb8"')
@@ -77,6 +81,8 @@ class QueryTests(TestCase):
         self.assertEqual(bq(name='foo*'), '+name:"foo\\*"')
         self.assertEqual(bq(name='foo bar'), '+name:"foo bar"')
         self.assertEqual(bq(name='john@foo.com'), '+name:"john@foo.com"')
+        self.assertEqual(bq(name=' '), '+name:" "')
+        self.assertEqual(bq(name=''), '')
 
     def testMultiValueQueries(self):
         bq = self.search.buildQuery
@@ -93,6 +99,8 @@ class QueryTests(TestCase):
         self.assertEqual(bq('foo', name=('bar', 'hmm')), '+foo +name:(bar hmm)')
         self.assertEqual(bq(name='foo', cat='bar'), '+name:foo +cat:bar')
         self.assertEqual(bq(name='foo', cat=['bar', 'hmm']), '+name:foo +cat:(bar hmm)')
+        self.assertEqual(bq('foo', name=' '), '+foo +name:" "')
+        self.assertEqual(bq('foo', name=''), '+foo')
 
     def testInvalidArguments(self):
         bq = self.search.buildQuery
@@ -125,6 +133,8 @@ class QueryTests(TestCase):
         self.assertEqual(bq(name='"-foo"', timestamp='"[* TO NOW]"'),
             '+timestamp:[* TO NOW] +name:-foo')
         self.assertEqual(bq(name='"john@foo.com"'), '+name:john@foo.com')
+        self.assertEqual(bq(name='" "'), '+name:" "')
+        self.assertEqual(bq(name='""'), '')
 
     def testComplexQueries(self):
         bq = self.search.buildQuery
@@ -181,12 +191,7 @@ class SearchTests(TestCase):
 
 
 def test_suite():
-    return TestSuite((
-        makeSuite(QuoteTests),
-        makeSuite(QueryTests),
-        makeSuite(InactiveQueryTests),
-        makeSuite(SearchTests),
-    ))
+    return defaultTestLoader.loadTestsFromName(__name__)
 
 if __name__ == '__main__':
     main(defaultTest='test_suite')
