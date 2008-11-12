@@ -123,19 +123,29 @@ class BatchedResults(object):
         params['rows'] = size
         end = start + size - 1
         if self._end and end > self._end:
+            # if we've been sliced don't get results that won't be in the slice
             params['rows'] = self._end - start + 1
             end = self._end
         if limit is not None:
             if end >= limit:
+                # if the query included a limit make sure we don't go over the
+                # limit
                 params['rows'] = limit - start
         self._results = results = search(query, fl='* score', **params)
         if self._total is None:
             total = int(results.numFound)
             if limit is not None and self._end is not None:
+                # if we've been sliced and there is a limit the results count
+                # is the smallest of total number of results, the limit or
+                # the slice size
                 self._total = min(total, limit, (self._end - self._offset + 1))
             elif self._end is not None:
+                # if we've been sliced and there is no limit the results count
+                # is the smallest of total number of results or the slice size
                 self._total = min(total, (self._end - self._offset + 1))
             elif limit is not None:
+                # limit but no slice, results count is smallest of limit or
+                # total number of results
                 self._total = min(total, limit)
             else:
                 self._total = total
