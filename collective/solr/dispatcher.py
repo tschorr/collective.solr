@@ -79,23 +79,23 @@ class BatchedResults(object):
                 start = length + start
             end = index.stop
             if end is None:
-                end = length - 1
-            if end < 0:
+                end = length
+            elif end < 0:
                 end = length + end
             if end < start:
-                raise ValueError('end may not be less than start')
+                return list()
             return BatchedResults(self._search, self._query, self._batch_size,
                     self._request, offset=start, end=end, **params)
-        if index >= length:
-            raise IndexError('list index out of range')
         if index < 0:
             index = length + index
-        start = self._start
-        end = start + self._batch_size - 1
-        if index < start or index > end:
+        if index >= length or length == 0:
+            raise IndexError('list index out of range')
+        index = index + self._offset
+        end = self._start + self._batch_size - 1
+        if index < self._start or index > end:
             self._doSearch(index=index)
-        index = index - start
-        return self._wrap(self._results[index])
+        index = index - self._start
+        return self._results[index]
 
     def _wrap(self, flare):
         adapter = queryMultiAdapter((flare, self._request), IFlare)
@@ -119,7 +119,7 @@ class BatchedResults(object):
         limit = self._limit
         if index is not None:
             start = (index / size) * size
-        self._start = params['start'] = start + self._offset
+        self._start = start = params['start'] = start + self._offset
         params['rows'] = size
         end = start + size - 1
         if self._end and end > self._end:
@@ -131,18 +131,20 @@ class BatchedResults(object):
                 # if the query included a limit make sure we don't go over the
                 # limit
                 params['rows'] = limit - start
-        self._results = results = search(query, fl='* score', **params)
+        results = search(query, fl='* score', **params)
+        wrap = self._wrap
+        self._results = map(wrap, results)
         if self._total is None:
             total = int(results.numFound)
             if limit is not None and self._end is not None:
                 # if we've been sliced and there is a limit the results count
                 # is the smallest of total number of results, the limit or
                 # the slice size
-                self._total = min(total, limit, (self._end - self._offset + 1))
+                self._total = min(total, limit, (self._end - self._offset))
             elif self._end is not None:
                 # if we've been sliced and there is no limit the results count
                 # is the smallest of total number of results or the slice size
-                self._total = min(total, (self._end - self._offset + 1))
+                self._total = min(total, (self._end - self._offset))
             elif limit is not None:
                 # limit but no slice, results count is smallest of limit or
                 # total number of results
