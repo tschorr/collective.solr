@@ -17,16 +17,21 @@ from time import sleep
 
 class BatchedTests(SolrTestCase):
 
+    def afterSetUp(self):
+        schema = getData('plone_schema.xml')
+        self.proc = queryUtility(ISolrConnectionManager)
+        self.proc.setHost(active=True)
+
     def beforeTearDown(self):
         # resetting the solr configuration after each test isn't strictly
         # needed at the moment, but it triggers the `ConnectionStateError`
         # when the other tests (in `errors.txt`) is trying to perform an
         # actual solr search...
-        proc = queryUtility(ISolrConnectionManager)
-        proc.closeConnection(clearSchema=True)
-        proc.setHost(active=False)
+        self.proc.closeConnection(clearSchema=True)
+        self.proc.setHost(active=False)
         config = queryUtility(ISolrConnectionConfig)
         config.active = False
+        config.host = '127.0.0.1'
         commit()
 
     def testIteration(self):
