@@ -44,6 +44,8 @@ class SearchDispatcher(object):
 
 class BatchedResults(object):
 
+    __allow_access_to_unprotected_subobjects__ = 1
+
     def __init__(self, search, query, batch_size, request, offset=0,
             end=None, **params):
         self._search = search
