@@ -181,13 +181,15 @@ def solrSearchResults(request=None, **keywords):
                     raise FallBackException
         else:
             raise FallBackException
-    mangleQuery(args)
     prepareData(args)
+    mangleQuery(args)
     query = search.buildQuery(**args)
     schema = search.getManager().getSchema() or {}
     params = cleanupQueryParameters(extractQueryParameters(args), schema)
-    return BatchedResults(search, query, config.batch_size, request,
+
+    results = BatchedResults(search, query, config.batch_size, request,
             **params)
+    return results
     #results = search(query, fl='* score', **params)
     #def wrap(flare):
     #    """ wrap a flare object with a helper class """

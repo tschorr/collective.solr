@@ -23,7 +23,10 @@ def prepareData(data):
         for "allowedRolesAndUsers" etc """
     allowed = data.get('allowedRolesAndUsers', None)
     if allowed is not None:
-        data['allowedRolesAndUsers'] = [r.replace(':','$') for r in allowed]
+        if type(allowed) in (dict,):
+            allowed['query'] = [x.replace(':','$') for x in allowed['query']]
+        else:
+            data['allowedRolesAndUsers'] = [x.replace(':','$') for x in allowed]
 
 
 def findObjects(origin):

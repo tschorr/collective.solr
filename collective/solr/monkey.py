@@ -1,3 +1,5 @@
+
+from logging import getLogger
 from zope.component import queryAdapter
 from DateTime import DateTime
 from Products.ZCatalog.ZCatalog import ZCatalog
@@ -9,13 +11,18 @@ from Products.CMFPlone.CatalogTool import CatalogTool
 from collective.solr.interfaces import ISearchDispatcher
 from collective.indexing.utils import autoFlushQueue
 
+log = getLogger('collective.solr.monkey')
 
 def searchResults(self, REQUEST=None, **kw):
     """ based on the version in `CMFPlone/CatalogTool.py` """
     kw = kw.copy()
     show_inactive = kw.get('show_inactive', False)
     user = _getAuthenticatedUser(self)
-    kw['allowedRolesAndUsers'] = self._listAllowedRolesAndUsers(user)
+    kw['allowedRolesAndUsers'] = dict(
+            query=self._listAllowedRolesAndUsers(user),
+            operator='or',
+            )
+    log.debug(kw['allowedRolesAndUsers'])
     if not show_inactive and not _checkPermission(AccessInactivePortalContent, self):
         kw['effectiveRange'] = DateTime()
 
