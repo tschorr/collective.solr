@@ -1,5 +1,4 @@
 from logging import getLogger
-from persistent import Persistent
 from DateTime import DateTime
 from zope.component import getUtility, queryUtility, queryMultiAdapter
 from zope.interface import implements
@@ -7,6 +6,8 @@ from Products.CMFCore.utils import getToolByName
 from Products.CMFCore.CMFCatalogAware import CMFCatalogAware
 from Products.Archetypes.CatalogMultiplex import CatalogMultiplex
 from plone.app.content.interfaces import IIndexableObjectWrapper
+from plone.indexer.interfaces import IIndexableObject
+
 from collective.solr.interfaces import ISolrConnectionConfig
 from collective.solr.interfaces import ISolrConnectionManager
 from collective.solr.interfaces import ISolrIndexQueueProcessor
@@ -20,7 +21,8 @@ logger = getLogger('collective.solr.indexer')
 def indexable(obj):
     """ indicate whether a given object should be indexed; for now only
         objects inheriting one of the catalog mixin classes are considerd """
-    return isinstance(obj, CatalogMultiplex) or isinstance(obj, CMFCatalogAware)
+    return isinstance(obj, CatalogMultiplex) or \
+        isinstance(obj, CMFCatalogAware)
 
 
 def datehandler(value):
@@ -38,7 +40,7 @@ def datehandler(value):
 handlers = {'solr.DateField': datehandler}
 
 
-class SolrIndexQueueProcessor(Persistent):
+class SolrIndexProcessor(object):
     """ a queue processor for solr """
     implements(ISolrIndexQueueProcessor)
 
@@ -52,11 +54,13 @@ class SolrIndexQueueProcessor(Persistent):
             prepareData(data)
             schema = self.manager.getSchema()
             if schema is None:
-                logger.warning('unable to fetch schema, skipping indexing of %r', obj)
+                msg = 'unable to fetch schema, skipping indexing of %r'
+                logger.warning(msg, obj)
                 return
             uniqueKey = schema.get('uniqueKey', None)
             if uniqueKey is None:
-                logger.warning('schema is missing unique key, skipping indexing of %r', obj)
+                msg = 'schema is missing unique key, skipping indexing of %r'
+                logger.warning(msg, obj)
                 return
             if data.get(uniqueKey, None) is not None and not missing:
                 try:
@@ -73,20 +77,24 @@ class SolrIndexQueueProcessor(Persistent):
         if conn is not None:
             schema = self.manager.getSchema()
             if schema is None:
-                logger.warning('unable to fetch schema, skipping unindexing of %r', obj)
+                msg = 'unable to fetch schema, skipping unindexing of %r'
+                logger.warning(msg, obj)
                 return
             uniqueKey = schema.get('uniqueKey', None)
             if uniqueKey is None:
-                logger.warning('schema is missing unique key, skipping unindexing of %r', obj)
+                msg = 'schema is missing unique key, skipping unindexing of %r'
+                logger.warning(msg, obj)
                 return
             data, missing = self.getData(obj, attributes=[uniqueKey])
             prepareData(data)
-            if not data.has_key(uniqueKey):
-                logger.info('Can not unindex: no unique key for object %r', obj)
+            if not uniqueKey in data:
+                msg = 'Can not unindex: no unique key for object %r'
+                logger.info(msg, obj)
                 return
             data_key = data[uniqueKey]
             if data_key is None:
-                logger.info('Can not unindex: `None` unique key for object %r', obj)
+                msg = 'Can not unindex: `None` unique key for object %r'
+                logger.info(msg, obj)
                 return
             try:
                 logger.debug('unindexing %r (%r)', obj, data)
@@ -126,18 +134,26 @@ class SolrIndexQueueProcessor(Persistent):
             return self.manager.getConnection()
 
     def wrapObject(self, obj):
-        """ wrap object with an "IndexableObjectWrapper`, see
-            `CatalogTool.catalog_object` for some background """
-        portal = getToolByName(obj, 'portal_url', None)
-        if portal is None:
-            return obj
-        portal = portal.getPortalObject()
-        wrapper = queryMultiAdapter((obj, portal), IIndexableObjectWrapper)
-        if wrapper is None:
-            return obj
-        wft = getToolByName(obj, 'portal_workflow', None)
-        if wft is not None:
-            wrapper.update(wft.getCatalogVariablesFor(obj))
+        """ wrap object with an "IndexableObjectWrapper` (for Plone < 3.3) or
+            adapt it to `IIndexableObject` (for Plone >= 3.3), see
+            `CMFPlone...CatalogTool.catalog_object` for some background """
+        wrapper = obj
+        # first try the new way, i.e. using `plone.indexer`...
+        catalog = getToolByName(obj, 'portal_catalog', None)
+        adapter = queryMultiAdapter((obj, catalog), IIndexableObject)
+        if adapter is not None:
+            wrapper = adapter
+        else:       # otherwise try the old way...
+            portal = getToolByName(obj, 'portal_url', None)
+            if portal is None:
+                return obj
+            portal = portal.getPortalObject()
+            adapter = queryMultiAdapter((obj, portal), IIndexableObjectWrapper)
+            if adapter is not None:
+                wrapper = adapter
+            wft = getToolByName(obj, 'portal_workflow', None)
+            if wft is not None:
+                wrapper.update(wft.getCatalogVariablesFor(obj))
         return wrapper
 
     def getData(self, obj, attributes=None):
@@ -166,4 +182,3 @@ class SolrIndexQueueProcessor(Persistent):
             data[name] = value
         missing = set(schema.requiredFields) - set(data.keys())
         return data, missing
-

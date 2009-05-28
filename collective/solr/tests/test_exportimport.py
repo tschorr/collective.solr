@@ -21,12 +21,15 @@ class SetupToolTests(SolrTestCase, TarballTester):
         config.max_results = 42
         config.required = ('foo', 'bar')
         config.batch_size = 40
+        config.facets = ('type', 'state')
 
     def testImportStep(self):
+        profile = 'profile-collective.solr:default'
         tool = self.portal.portal_setup
-        result = tool.runImportStepFromProfile('profile-collective.solr:default', 'solr')
+        result = tool.runImportStepFromProfile(profile, 'solr')
         self.assertEqual(result['steps'], [u'componentregistry', 'solr'])
-        self.failUnless(result['messages']['solr'].endswith('collective.solr: settings imported.'))
+        output = 'collective.solr: settings imported.'
+        self.failUnless(result['messages']['solr'].endswith(output))
         config = getUtility(ISolrConnectionConfig)
         self.assertEqual(config.active, False)
         self.assertEqual(config.host, '127.0.0.1')
@@ -36,8 +39,9 @@ class SetupToolTests(SolrTestCase, TarballTester):
         self.assertEqual(config.index_timeout, 0)
         self.assertEqual(config.search_timeout, 0)
         self.assertEqual(config.max_results, 0)
-        self.assertEqual(config.required, ('SearchableText',))
+        self.assertEqual(config.required, ('SearchableText', ))
         self.assertEqual(config.batch_size, 100)
+        self.assertEqual(config.facets, ('portal_type', 'review_state'))
 
     def testExportStep(self):
         tool = self.portal.portal_setup
@@ -47,6 +51,27 @@ class SetupToolTests(SolrTestCase, TarballTester):
         tarball = StringIO(result['tarball'])
         self._verifyTarballContents(tarball, ['solr.xml'])
         self._verifyTarballEntryXML(tarball, 'solr.xml', SOLR_XML)
+
+    def testImportDoesntChangeActivationState(self):
+        # re-applying the solr profile shouldn't change the activation state
+        # so let's assume we've already got a site using the package...
+        profile = 'profile-collective.solr:default'
+        tool = self.portal.portal_setup
+        result = tool.runImportStepFromProfile(profile, 'solr')
+        self.assertEqual(result['steps'], [u'componentregistry', 'solr'])
+        # by default solr support shouldn't be active
+        config = getUtility(ISolrConnectionConfig)
+        self.assertEqual(config.active, False)
+        # so let's active and re-apply the profile...
+        config.active = True
+        result = tool.runImportStepFromProfile(profile, 'solr')
+        self.assertEqual(result['steps'], [u'componentregistry', 'solr'])
+        self.assertEqual(config.active, True)
+        # now again in a deactivated state...
+        config.active = False
+        result = tool.runImportStepFromProfile(profile, 'solr')
+        self.assertEqual(result['steps'], [u'componentregistry', 'solr'])
+        self.assertEqual(config.active, False)
 
 
 SOLR_XML = """\
@@ -68,6 +93,10 @@ SOLR_XML = """\
       <parameter name="bar" />
     </required-query-parameters>
     <batch-size value="40" />
+    <search-facets>
+      <parameter name="type" />
+      <parameter name="state" />
+    </search-facets>
   </settings>
 </object>
 """
@@ -75,4 +104,3 @@ SOLR_XML = """\
 
 def test_suite():
     return defaultTestLoader.loadTestsFromName(__name__)
-

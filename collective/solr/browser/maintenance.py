@@ -17,6 +17,7 @@ logger = getLogger('collective.solr.maintenance')
 
 
 def timer(func=time):
+    """ set up a generator returning the elapsed time since the last call """
     def gen(last=func()):
         while True:
             elapsed = func() - last
@@ -26,6 +27,7 @@ def timer(func=time):
 
 
 def checkpointIterator(function, interval=100):
+    """ the iterator will call the given function for every nth invocation """
     counter = 0
     while True:
         counter += 1
@@ -92,8 +94,8 @@ class SolrMaintenanceView(BrowserView):
                 log(' (%.4fs)\n' % (time() - lap), timestamp=False)
                 commit -= 1
                 if commit == 0:
-                    msg = 'intermediate commit (%d objects indexed in %.4fs)...\n'
-                    log(msg %  (indexed, time() - now))
+                    msg = 'intermediate commit: %d objects indexed in %.4fs\n'
+                    log(msg % (indexed, time() - now))
                     proc.commit(wait=True)
                     commit = batch
                     manager.getConnection().reset()     # force new connection
@@ -101,35 +103,46 @@ class SolrMaintenanceView(BrowserView):
                         db = self.context.getPhysicalRoot()._p_jar.db()
                         size = db.cacheSize()
                         if size > cache:
-                            log('minimizing zodb cache with %d objects...\n' % size)
+                            msg = 'minimizing zodb cache with %d objects...\n'
+                            log(msg % size)
                             db.cacheMinimize()
         proc.commit(wait=True)      # make sure to commit in the end...
         now, cpu = time() - now, clock() - cpu
         log('solr index rebuilt.\n')
-        msg = 'indexed %d object(s) in %.3f seconds (%.3f cpu time).' % (indexed, now, cpu)
+        msg = 'indexed %d object(s) in %.3f seconds (%.3f cpu time).'
+        msg = msg % (indexed, now, cpu)
         log(msg)
         logger.info(msg)
+
+    def metadata(self, index, key, func=lambda x: x):
+        """ build a mapping between a unique key and a given attribute from
+            the portal catalog; catalog metadata must exist for the given
+            index """
+        catalog = getToolByName(self.context, 'portal_catalog')
+        cat = catalog._catalog      # get the real catalog...
+        pos = cat.schema[index]
+        data = {}
+        for uid, rids in cat.getIndex(key).items():
+            for rid in rids:
+                value = cat.data[rid][pos]
+                if value is not None:
+                    data[uid] = func(value)
+        return data
 
     def diff(self):
         """ determine objects that need to be indexed/reindex/unindexed by
             diff'ing the records in the portal catalog and solr """
-        catalog = getToolByName(self.context, 'portal_catalog')
-        cat = catalog._catalog      # get the real catalog...
-        pos = cat.schema['modified']
-        uids = {}
-        for uid, rids in cat.getIndex('UID').items():
-            for rid in rids:
-                modified = cat.data[rid][pos]
-                if modified is not None:
-                    uids[uid] = modified.millis()
+        key = queryUtility(ISolrConnectionManager).getSchema().uniqueKey
+        uids = self.metadata('modified', key=key, func=lambda x: x.millis())
         search = queryUtility(ISearch)
         reindex = []
         unindex = []
         rows = len(uids) * 10               # sys.maxint makes solr choke :(
-        for flare in search('UID:[* TO *]', rows=rows, fl='UID modified'):
-            uid = flare.UID
-            assert uid, 'empty UID?'
-            if uids.has_key(uid):
+        query = '%s:[* TO *]' % key
+        for flare in search(query, rows=rows, fl='%s modified' % key):
+            uid = getattr(flare, key)
+            assert uid, 'empty unique key?'
+            if uid in uids:
                 if uids[uid] > flare.modified.millis():
                     reindex.append(uid)     # item isn't current
                 del uids[uid]               # remove from the list in any case
@@ -159,8 +172,8 @@ class SolrMaintenanceView(BrowserView):
             len(index), len(reindex), len(unindex)))
         processed = 0
         def checkPoint():
-            msg = 'intermediate commit (%d objects processed in %s)...\n'
-            log(msg % (processed, lap.next()))
+            log('intermediate commit (%d objects processed, '
+                'last batch in %s)...\n' % (processed, lap.next()))
             proc.commit(wait=True)
             manager.getConnection().reset()     # force new connection
             if cache:
@@ -180,6 +193,9 @@ class SolrMaintenanceView(BrowserView):
                 processed += 1
                 log(' (%s).\n' % single.next(), timestamp=False)
                 cpi.next()
+                single.next()   # don't count commit time here...
+            else:
+                log('not indexing unindexable object %r.\n' % obj)
         log('processing %d "reindex" operations next...\n' % len(reindex))
         for uid in reindex:
             obj = lookup(uid)
@@ -187,8 +203,11 @@ class SolrMaintenanceView(BrowserView):
                 log('reindexing %r' % obj)
                 proc.reindex(obj)
                 processed += 1
-                log(' (%s).\n' % single.next())
+                log(' (%s).\n' % single.next(), timestamp=False)
                 cpi.next()
+                single.next()   # don't count commit time here...
+            else:
+                log('not reindexing unindexable object %r.\n' % obj)
         log('processing %d "unindex" operations next...\n' % len(unindex))
         conn = proc.getConnection()
         for uid in unindex:
@@ -197,8 +216,9 @@ class SolrMaintenanceView(BrowserView):
                 log('unindexing %r' % uid)
                 conn.delete(id=uid)
                 processed += 1
-                log(' (%s).\n' % single.next())
+                log(' (%s).\n' % single.next(), timestamp=False)
                 cpi.next()
+                single.next()   # don't count commit time here...
             else:
                 log('not unindexing existing object %r (%r).\n' % (obj, uid))
         proc.commit(wait=True)      # make sure to commit in the end...
@@ -208,3 +228,36 @@ class SolrMaintenanceView(BrowserView):
         log(msg)
         logger.info(msg)
 
+    def catalogSync(self, index, batch=1000):
+        """ add or sync a single solr index using data from the portal
+            catalog;  existing data in solr will be overwritten for the
+            given index """
+        manager = queryUtility(ISolrConnectionManager)
+        manager.setTimeout(None)        # don't time out during syncing
+        log = self.mklog()
+        log('getting data for "%s" from portal catalog...\n' % index)
+        key = manager.getSchema().uniqueKey
+        data = self.metadata(index, key=key)
+        log('syncing "%s" from portal catalog to solr...\n' % index)
+        real = timer()          # real time
+        lap = timer()           # real lap time (for intermediate commits)
+        cpu = timer(clock)      # cpu time
+        processed = 0
+        conn = manager.getConnection()
+        def checkPoint():
+            log('intermediate commit (%d items processed, '
+                'last batch in %s)...\n' % (processed, lap.next()))
+            conn.commit()
+            manager.getConnection().reset()     # force new connection
+        cpi = checkpointIterator(checkPoint, batch)
+        for uid, value in data.items():
+            data = {key: uid, index: value}
+            conn.add(**data)
+            processed += 1
+            cpi.next()
+        conn.commit()           # make sure to commit in the end...
+        log('portal catalog data synced.\n')
+        msg = 'processed %d items in %s (%s cpu time).'
+        msg = msg % (processed, real.next(), cpu.next())
+        log(msg)
+        logger.info(msg)

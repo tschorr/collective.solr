@@ -51,7 +51,7 @@ class PloneFlare(AttrDict):
 
     def pretty_title_or_id(self):
         for attr in 'Title', 'getId', 'id':
-            if self.has_key(attr):
+            if attr in self:
                 return self[attr]
         return '<untitled item>'
 
@@ -67,11 +67,10 @@ class PloneFlare(AttrDict):
         score = self.get('score', None)
         if score is None:
             return 'n.a.'
-        return score
+        return '%.1f' % (float(score) * 100)
 
     @property
     def review_state(self):
-        if self.has_key('review_state'):
+        if 'review_state' in self:
             return self['review_state']
         return ''
-

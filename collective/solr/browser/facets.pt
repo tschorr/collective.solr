@@ -1,0 +1,35 @@
+<div id="portal-searchfacets"
+     tal:define="facets view/facets; selected view/selected"
+     tal:condition="python: facets or selected"
+     i18n:domain="plone">
+
+  <h4 i18n:translate="heading_search_facets">
+    Limit search results...
+  </h4>
+
+  <div i18n:domain="solr" id="selected-facets">
+    <div tal:repeat="item selected">
+      &raquo;
+      <span tal:content="item/value" i18n:translate=""
+            tal:attributes="title item/title" i18n:attributes="title" />
+      <a tal:attributes="href string:${request/ACTUAL_URL}?${item/query}"
+         title="Remove this search limit..." i18n:attributes="title" >
+        &otimes;
+      </a>
+    </div>
+  </div>
+
+  <div tal:repeat="facet facets" i18n:domain="solr">
+    <h5 tal:content="facet/title" i18n:translate="" />
+    <dl>
+      <tal:counts repeat="item facet/counts">
+        <dt>
+          <a href="#" tal:content="item/name"
+             tal:attributes="href string:${request/ACTUAL_URL}?${item/query}" />
+        </dt>
+        <dd tal:content="item/count" />
+      </tal:counts>
+    </dl>
+  </div>
+
+</div>

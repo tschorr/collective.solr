@@ -34,6 +34,7 @@ class SolrConfigXMLAdapter(XMLAdapterBase):
         self.context.max_results = 0
         self.context.required = []
         self.context.batch_size = 100
+        self.context.facets = []
 
     def _initProperties(self, node):
         elems = node.getElementsByTagName('connection')
@@ -42,8 +43,8 @@ class SolrConfigXMLAdapter(XMLAdapterBase):
             conn = elems[0]
             for child in conn.childNodes:
                 if child.nodeName == 'active':
-                    value = self._convertToBoolean(str(child.getAttribute('value')))
-                    self.context.active = value
+                    value = str(child.getAttribute('value'))
+                    self.context.active = self._convertToBoolean(value)
                 elif child.nodeName == 'port':
                     value = int(str(child.getAttribute('value')))
                     self.context.port = value
@@ -57,8 +58,8 @@ class SolrConfigXMLAdapter(XMLAdapterBase):
             settings = elems[0]
             for child in settings.childNodes:
                 if child.nodeName == 'async':
-                    value = self._convertToBoolean(str(child.getAttribute('value')))
-                    self.context.async = value
+                    value = str(child.getAttribute('value'))
+                    self.context.async = self._convertToBoolean(value)
                 elif child.nodeName == 'index-timeout':
                     value = float(str(child.getAttribute('value')))
                     self.context.index_timeout = value
@@ -76,6 +77,11 @@ class SolrConfigXMLAdapter(XMLAdapterBase):
                 elif child.nodeName == 'batch-size':
                     value = int(str(child.getAttribute('value')))
                     self.context.batch_size = value
+                elif child.nodeName == 'search-facets':
+                    value = []
+                    for elem in child.getElementsByTagName('parameter'):
+                        value.append(elem.getAttribute('name'))
+                    self.context.facets = tuple(map(str, value))
 
     def _createNode(self, name, value):
         node = self._doc.createElement(name)
@@ -86,24 +92,32 @@ class SolrConfigXMLAdapter(XMLAdapterBase):
         node = self._doc.createElement('object')
         node.setAttribute('name', 'solr')
         conn = self._doc.createElement('connection')
+        create = self._createNode
         node.appendChild(conn)
-        conn.appendChild(self._createNode('active', str(bool(self.context.active))))
-        conn.appendChild(self._createNode('host', self.context.host))
-        conn.appendChild(self._createNode('port', str(self.context.port)))
-        conn.appendChild(self._createNode('base', self.context.base))
+        conn.appendChild(create('active', str(bool(self.context.active))))
+        conn.appendChild(create('host', self.context.host))
+        conn.appendChild(create('port', str(self.context.port)))
+        conn.appendChild(create('base', self.context.base))
         settings = self._doc.createElement('settings')
         node.appendChild(settings)
-        settings.appendChild(self._createNode('async', str(bool(self.context.async))))
-        settings.appendChild(self._createNode('index-timeout', str(self.context.index_timeout)))
-        settings.appendChild(self._createNode('search-timeout', str(self.context.search_timeout)))
-        settings.appendChild(self._createNode('max-results', str(self.context.max_results)))
+        append = settings.appendChild
+        append(create('async', str(bool(self.context.async))))
+        append(create('index-timeout', str(self.context.index_timeout)))
+        append(create('search-timeout', str(self.context.search_timeout)))
+        append(create('max-results', str(self.context.max_results)))
         required = self._doc.createElement('required-query-parameters')
-        settings.appendChild(required)
+        append(required)
         for name in self.context.required:
             param = self._doc.createElement('parameter')
             param.setAttribute('name', name)
             required.appendChild(param)
         settings.appendChild(self._createNode('batch-size', str(self.context.batch_size)))
+        facets = self._doc.createElement('search-facets')
+        append(facets)
+        for name in self.context.facets:
+            param = self._doc.createElement('parameter')
+            param.setAttribute('name', name)
+            facets.appendChild(param)
         return node
 
 
@@ -117,6 +131,7 @@ def importSolrSettings(context):
         return
     importObjects(utility, '', context)
 
+
 def exportSolrSettings(context):
     """ export settings for solr integration as an XML file """
     site = context.getSite()
@@ -126,4 +141,3 @@ def exportSolrSettings(context):
         logger.info('Nothing to export.')
         return
     exportObjects(utility, '', context)
-

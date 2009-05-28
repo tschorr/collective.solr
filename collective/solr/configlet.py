@@ -123,12 +123,22 @@ class SolrControlPanelAdapter(SchemaAdapterBase):
 
     batch_size = property(getBatchSize, setBatchSize)
 
+    def getDefaultFacets(self):
+        util = queryUtility(ISolrConnectionConfig)
+        return getattr(util, 'facets', '')
+
+    def setDefaultFacets(self, value):
+        util = queryUtility(ISolrConnectionConfig)
+        if util is not None:
+            util.facets = value
+
+    facets = property(getDefaultFacets, setDefaultFacets)
+
 
 class SolrControlPanel(ControlPanelForm):
 
     form_fields = FormFields(ISolrSchema)
 
     label = _('Solr settings')
-    description = _('Settings to enable and configure Solr integration for Plone.')
+    description = _('Settings to enable and configure Solr integration.')
     form_name = _('Solr settings')
-

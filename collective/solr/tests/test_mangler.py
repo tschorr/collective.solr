@@ -12,10 +12,21 @@ def mangle(**keywords):
     return keywords
 
 
+class Query:
+
+    def __init__(self, query, range=None, operator=None, depth=None):
+        self.query = query
+        self.range = range
+        self.operator = operator
+        self.depth = depth
+
+
 class QueryManglerTests(TestCase):
 
     def testPassUnknownArguments(self):
         keywords = mangle(foo=23, bar=42)
+        self.assertEqual(keywords, {'foo': 23, 'bar': 42})
+        keywords = mangle(foo=Query(23), bar=Query(42))
         self.assertEqual(keywords, {'foo': 23, 'bar': 42})
 
     def testComplainAboutUnknownUsages(self):
@@ -23,23 +34,29 @@ class QueryManglerTests(TestCase):
         self.assertRaises(AssertionError, mangleQuery, keywords)
 
     def testMinRange(self):
-        keywords = mangle(foo=(23,), foo_usage='range:min')
+        keywords = mangle(foo=[23], foo_usage='range:min')
         self.assertEqual(keywords, {'foo': '"[23 TO *]"'})
-        keywords = mangle(foo=dict(query=(23,), range='min'))
+        keywords = mangle(foo=dict(query=[23], range='min'))
+        self.assertEqual(keywords, {'foo': '"[23 TO *]"'})
+        keywords = mangle(foo=Query(query=[23], range='min'))
         self.assertEqual(keywords, {'foo': '"[23 TO *]"'})
 
     def testMaxRange(self):
-        keywords = mangle(foo=(23,), foo_usage='range:max')
+        keywords = mangle(foo=[23], foo_usage='range:max')
         self.assertEqual(keywords, {'foo': '"[* TO 23]"'})
-        keywords = mangle(foo=dict(query=(23,), range='max'))
+        keywords = mangle(foo=dict(query=[23], range='max'))
         self.assertEqual(keywords, {'foo': '"[* TO 23]"'})
         keywords = mangle(foo=dict(query=23, range='max'))
         self.assertEqual(keywords, {'foo': '"[* TO 23]"'})
+        keywords = mangle(foo=Query(query=23, range='max'))
+        self.assertEqual(keywords, {'foo': '"[* TO 23]"'})
 
     def testMinMaxRange(self):
-        keywords = mangle(foo=(23,42), foo_usage='range:min:max')
+        keywords = mangle(foo=(23, 42), foo_usage='range:min:max')
         self.assertEqual(keywords, {'foo': '"[23 TO 42]"'})
-        keywords = mangle(foo=dict(query=(23,42), range='min:max'))
+        keywords = mangle(foo=dict(query=(23, 42), range='min:max'))
+        self.assertEqual(keywords, {'foo': '"[23 TO 42]"'})
+        keywords = mangle(foo=Query(query=(23, 42), range='min:max'))
         self.assertEqual(keywords, {'foo': '"[23 TO 42]"'})
 
     def testDateConversion(self):
@@ -49,26 +66,35 @@ class QueryManglerTests(TestCase):
         keywords = mangle(foo=(day, day + 7), foo_usage='range:min:max')
         self.assertEqual(keywords, {'foo':
             '"[1972-05-11T00:00:00.000Z TO 1972-05-18T00:00:00.000Z]"'})
-        keywords = mangle(foo=(day,), foo_usage='range:min')
+        keywords = mangle(foo=[day], foo_usage='range:min')
         self.assertEqual(keywords, {'foo':
             '"[1972-05-11T00:00:00.000Z TO *]"'})
-        keywords = mangle(foo=dict(query=(day,), range='min'))
+        keywords = mangle(foo=dict(query=[day], range='min'))
         self.assertEqual(keywords, {'foo':
             '"[1972-05-11T00:00:00.000Z TO *]"'})
+        keywords = mangle(foo=Query(day))
+        self.assertEqual(keywords, {'foo': '1972-05-11T00:00:00.000Z'})
 
     def testOperatorConversion(self):
-        keywords = mangle(foo=(23,42), foo_usage='operator:or')
-        self.assertEqual(keywords, {'foo': '"(23 OR 42)"'})
-        keywords = mangle(foo=dict(query=(23,42), operator='or'))
-        self.assertEqual(keywords, {'foo': '"(23 OR 42)"'})
-        keywords = mangle(foo=(23,42), foo_usage='operator:and')
-        self.assertEqual(keywords, {'foo': '"(23 AND 42)"'})
-        keywords = mangle(foo=dict(query=(23,42), operator='and'))
-        self.assertEqual(keywords, {'foo': '"(23 AND 42)"'})
+        keywords = mangle(foo=(23, 42), foo_usage='operator:or')
+        self.assertEqual(keywords, {'foo': '(23 OR 42)'})
+        keywords = mangle(foo=dict(query=(23, 42), operator='or'))
+        self.assertEqual(keywords, {'foo': '(23 OR 42)'})
+        keywords = mangle(foo=Query(query=(23, 42), operator='or'))
+        self.assertEqual(keywords, {'foo': '(23 OR 42)'})
+        keywords = mangle(foo=(23, 42), foo_usage='operator:and')
+        self.assertEqual(keywords, {'foo': '(23 AND 42)'})
+        keywords = mangle(foo=dict(query=(23, 42), operator='and'))
+        self.assertEqual(keywords, {'foo': '(23 AND 42)'})
+        keywords = mangle(foo=Query(query=(23, 42), operator='and'))
+        self.assertEqual(keywords, {'foo': '(23 AND 42)'})
         day = DateTime('1972/05/11 UTC')
         keywords = mangle(foo=dict(query=(day, day + 7), operator='or'))
         self.assertEqual(keywords, {'foo':
-            '"(1972-05-11T00:00:00.000Z OR 1972-05-18T00:00:00.000Z)"'})
+            '(1972-05-11T00:00:00.000Z OR 1972-05-18T00:00:00.000Z)'})
+        keywords = mangle(foo=Query(query=(day, day + 7), operator='or'))
+        self.assertEqual(keywords, {'foo':
+            '(1972-05-11T00:00:00.000Z OR 1972-05-18T00:00:00.000Z)'})
 
     def testBooleanConversion(self):
         keywords = mangle(foo=False)
@@ -80,8 +106,8 @@ class QueryManglerTests(TestCase):
         day = DateTime('1972/05/11 UTC')
         keywords = mangle(effectiveRange=day)
         self.assertEqual(keywords, {
-            'effective': '"[* TO 1972-05-11T00:00:00.000Z]"',
-            'expires': '"[1972-05-11T00:00:00.000Z TO *]"',
+            'effective': '[* TO 1972-05-11T00:00:00.000Z]',
+            'expires': '[1972-05-11T00:00:00.000Z TO *]',
         })
 
 
@@ -95,13 +121,23 @@ class PathManglerTests(TestCase):
         keywords = mangle(path=dict(query='/foo'))
         self.assertEqual(keywords, {'parentPaths': '/foo'})
 
+    def testSimplePathQueryAsObject(self):
+        keywords = mangle(path=Query(query='/foo'))
+        self.assertEqual(keywords, {'parentPaths': '/foo'})
+
     def testPathQueryWithLevel(self):
         keywords = mangle(path=dict(query='/foo', depth=0))
         self.assertEqual(keywords, {'parentPaths': '/foo',
-            'physicalDepth': '"[* TO 2]"'})
+            'physicalDepth': '[* TO 2]'})
+        keywords = mangle(path=Query(query='/foo', depth=0))
+        self.assertEqual(keywords, {'parentPaths': '/foo',
+            'physicalDepth': '[* TO 2]'})
         keywords = mangle(path=dict(query='/foo', depth=2))
         self.assertEqual(keywords, {'parentPaths': '/foo',
-            'physicalDepth': '"[* TO 4]"'})
+            'physicalDepth': '[* TO 4]'})
+        keywords = mangle(path=Query(query='/foo', depth=2))
+        self.assertEqual(keywords, {'parentPaths': '/foo',
+            'physicalDepth': '[* TO 4]'})
 
 
 class QueryParameterTests(TestCase):
@@ -156,6 +192,37 @@ class QueryParameterTests(TestCase):
         params = extract({'sort_order': 'reverse', 'sort_limit': 5})
         self.assertEqual(params, dict(rows=5))
 
+    def testAllowFacetParameters(self):
+        extract = extractQueryParameters
+        # 'facet' and 'facet.*' should be passed on...
+        params = extract({'facet': 'true'})
+        self.assertEqual(params, {'facet': 'true'})
+        params = extract({'facet.field': 'foo', 'facet.foo': 'bar'})
+        self.assertEqual(params, {'facet.field': 'foo', 'facet.foo': 'bar'})
+        # not 'facet*' though
+        params = extract({'facetfoo': 'bar'})
+        self.assertEqual(params, {})
+        # an underscore can be used instead of the '.' for conveniently
+        # passing parameters as keyword arguments...
+        params = extract(dict(facet_foo='bar'))
+        self.assertEqual(params, {'facet.foo': 'bar'})
+
+    def testAllowFilterQueryParameters(self):
+        extract = extractQueryParameters
+        # 'fq' should be passed on...
+        params = extract({'fq': 'foo'})
+        self.assertEqual(params, {'fq': 'foo'})
+        params = extract({'fq': ['foo', 'bar']})
+        self.assertEqual(params, {'fq': ['foo', 'bar']})
+
+    def testAllowFieldListParameter(self):
+        extract = extractQueryParameters
+        # 'fl' should be passed on...
+        params = extract({'fl': 'foo'})
+        self.assertEqual(params, {'fl': 'foo'})
+        params = extract({'fl': ['foo', 'bar']})
+        self.assertEqual(params, {'fl': ['foo', 'bar']})
+
     def testSortIndexCleanup(self):
         cleanup = cleanupQueryParameters
         schema = SolrSchema()
@@ -183,4 +250,3 @@ def test_suite():
 
 if __name__ == '__main__':
     main(defaultTest='test_suite')
-

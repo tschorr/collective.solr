@@ -1,7 +1,6 @@
 <?xml version="1.0"?>
 <object name="solr">
   <connection>
-    <active value="False" />
     <host value="127.0.0.1" />
     <port value="8983" />
     <base value="/solr" />
@@ -15,5 +14,9 @@
       <parameter name="SearchableText" />
     </required-query-parameters>
     <batch-size value="100" />
+    <search-facets>
+      <parameter name="portal_type" />
+      <parameter name="review_state" />
+    </search-facets>
   </settings>
 </object>

@@ -3,6 +3,7 @@ from collective.solr.tests.base import SolrTestCase
 
 # test-specific imports go here...
 from zope.component import queryUtility, getUtilitiesFor
+from Products.CMFCore.utils import getToolByName
 from collective.indexing.interfaces import IIndexQueueProcessor
 from collective.solr.interfaces import ISolrConnectionConfig
 from collective.solr.interfaces import ISolrConnectionManager
@@ -33,7 +34,8 @@ class UtilityTests(SolrTestCase):
         procs = list(getUtilitiesFor(IIndexQueueProcessor))
         self.failUnless(procs, 'no utilities found')
         solr = queryUtility(ISolrIndexQueueProcessor, name='solr')
-        self.failUnless(solr in [util for name, util in procs], 'solr utility not found')
+        self.failUnless(solr in [util for name, util in procs],
+            'solr utility not found')
 
     def testSearchInterface(self):
         search = queryUtility(ISearch)
@@ -63,7 +65,7 @@ class IndexingTests(SolrTestCase):
         connection = self.proc.getConnection()
         responses = getData('add_response.txt'), getData('commit_response.txt')
         output = fakehttp(connection, *responses)           # fake responses
-        self.folder.processForm(values={'title': 'Foo'})    # updating sends data
+        self.folder.processForm(values={'title': 'Foo'})    # updating sends
         self.assertEqual(self.folder.Title(), 'Foo')
         self.assertEqual(str(output), '', 'reindexed unqueued!')
         commit()                        # indexing happens on commit
@@ -71,7 +73,7 @@ class IndexingTests(SolrTestCase):
         self.assert_(str(output).find(required) > 0, '"title" data not found')
 
     def testNoIndexingWithMethodOverride(self):
-        self.setRoles(('Manager',))
+        self.setRoles(['Manager'])
         output = []
         connection = self.proc.getConnection()
         responses = [getData('dummy_response.txt')] * 42    # set up enough...
@@ -80,14 +82,15 @@ class IndexingTests(SolrTestCase):
         self.folder.coll.addCriterion('Type', 'ATPortalTypeCriterion')
         self.assertEqual(str(output), '', 'reindexed unqueued!')
         commit()                        # indexing happens on commit
-        self.assert_(repr(output).find('a collection') > 0, '"title" data not found')
+        self.assert_(repr(output).find('a collection') > 0,
+            '"title" data not found')
         self.assert_(repr(output).find('crit') == -1, 'criterion indexed?')
         objs = self.portal.portal_catalog(portal_type='ATPortalTypeCriterion')
         self.assertEqual(list(objs), [])
         self.folder.manage_delObjects('coll')               # clean up again
 
     def testNoIndexingForNonCatalogAwareContent(self):
-        self.setRoles(('Manager',))
+        self.setRoles(['Manager'])
         output = []
         connection = self.proc.getConnection()
         responses = [getData('dummy_response.txt')] * 42    # set up enough...
@@ -97,7 +100,8 @@ class IndexingTests(SolrTestCase):
         commit()                        # indexing happens on commit
         self.assertNotEqual(repr(output).find('Foo'), -1, 'title not found')
         self.assertEqual(repr(output).find(ref.UID()), -1, 'reference found?')
-        self.assertEqual(repr(output).find('at_references'), -1, '`at_references` found?')
+        self.assertEqual(repr(output).find('at_references'), -1,
+            '`at_references` found?')
 
 
 class SiteSearchTests(SolrTestCase):
@@ -174,6 +178,18 @@ class SiteSearchTests(SolrTestCase):
         self.assertEqual(len(schema), 20)   # 20 items defined in schema.xml
 
 
+class SiteSetupTests(SolrTestCase):
+
+    def testBrowserResources(self):
+        registry = getToolByName(self.portal, 'portal_css')
+        css = '++resource++collective.solr.resources/style.css'
+        self.failUnless(css in registry.getResourceIds())
+
+    def testTranslation(self):
+        utrans = getToolByName(self.portal, 'translation_service').utranslate
+        translate = lambda msg: utrans(msgid=msg, domain='solr')
+        self.assertEqual(translate('portal_type'), u'Content type')
+
+
 def test_suite():
     return defaultTestLoader.loadTestsFromName(__name__)
-

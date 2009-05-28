@@ -2,6 +2,7 @@
 from logging import getLogger
 from zope.component import queryAdapter
 from DateTime import DateTime
+from Products.ZCatalog.Lazy import LazyCat
 from Products.ZCatalog.ZCatalog import ZCatalog
 from Products.CMFCore.permissions import AccessInactivePortalContent
 from Products.CMFCore.utils import _getAuthenticatedUser
@@ -10,20 +11,23 @@ from Products.CMFPlone.CatalogTool import CatalogTool
 
 from collective.solr.interfaces import ISearchDispatcher
 from collective.indexing.utils import autoFlushQueue
+from collective.solr.parser import SolrResponse
+from collective.solr.batched import BatchedResults
+
 
 log = getLogger('collective.solr.monkey')
 
 def searchResults(self, REQUEST=None, **kw):
     """ based on the version in `CMFPlone/CatalogTool.py` """
     kw = kw.copy()
-    show_inactive = kw.get('show_inactive', False)
+    only_active = not kw.get('show_inactive', False)
     user = _getAuthenticatedUser(self)
     kw['allowedRolesAndUsers'] = dict(
             query=self._listAllowedRolesAndUsers(user),
             operator='or',
             )
     log.debug(kw['allowedRolesAndUsers'])
-    if not show_inactive and not _checkPermission(AccessInactivePortalContent, self):
+    if only_active and not _checkPermission(AccessInactivePortalContent, self):
         kw['effectiveRange'] = DateTime()
 
     # support collective.indexing's "auto-flush" feature
@@ -42,3 +46,15 @@ def patchCatalogTool():
     CatalogTool.searchResults = searchResults
     CatalogTool.__call__ = searchResults
 
+
+def lazyAdd(self, other):
+    if isinstance(other, (SolrResponse, BatchedResults)):
+        other = LazyCat([list(other)])
+    return LazyCat._solr_original__add__(self, other)
+
+
+def patchLazyCat():
+    """ monkey patch ZCatalog's Lazy class in order to be able to
+        concatenate `LazyCat` and `SolrResponse` instances """
+    LazyCat._solr_original__add__ = LazyCat.__add__
+    LazyCat.__add__ = lazyAdd

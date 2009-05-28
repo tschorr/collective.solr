@@ -1,33 +1,15 @@
 from logging import getLogger
 from zope.interface import implements
 from zope.component import queryUtility
-from re import compile
 
 from collective.solr.interfaces import ISolrConnectionConfig
 from collective.solr.interfaces import ISolrConnectionManager
 from collective.solr.interfaces import ISearch
 from collective.solr.parser import SolrResponse
 from collective.solr.exceptions import SolrInactiveException
+from collective.solr.queryparser import quote
 
 logger = getLogger('collective.solr.search')
-
-
-word = compile('^\w+$')
-white = compile('^\s+$')
-special = compile('([-+&|!(){}[\]^"~*?\\:])')
-
-def quote(term):
-    """ quote a given term according to the solr/lucene query syntax;
-        see http://lucene.apache.org/java/docs/queryparsersyntax.html """
-    if isinstance(term, unicode):
-        term = term.encode('utf-8')
-    if term.startswith('"') and term.endswith('"'):
-        term = term[1:-1]
-        if white.match(term):
-            term = '"%s"' % term
-    elif not word.match(term):
-        term = '"%s"' % special.sub(r'\\\1', term)
-    return term
 
 
 class Search(object):
@@ -49,12 +31,12 @@ class Search(object):
         connection = manager.getConnection()
         if connection is None:
             raise SolrInactiveException
-        if not parameters.has_key('rows'):
+        if not 'rows' in parameters:
             config = queryUtility(ISolrConnectionConfig)
             parameters['rows'] = config.max_results or ''
         logger.debug('searching for %r (%r)', query, parameters)
         response = connection.search(q=query, **parameters)
-        return getattr(SolrResponse(response), 'response', [])
+        return SolrResponse(response)
 
     __call__ = search
 
@@ -68,26 +50,34 @@ class Search(object):
         for name, value in args.items():
             field = schema.get(name or defaultSearchField, None)
             if field is None or not field.indexed:
-                logger.debug('dropping unknown search attribute "%s" (%r)', name, value)
+                logger.debug('dropping unknown search attribute "%s" (%r)',
+                    name, value)
                 continue
             if isinstance(value, bool):
-                quoted = False
                 value = str(value).lower()
             elif not value:     # solr doesn't like empty fields (+foo:"")
                 continue
             elif isinstance(value, (tuple, list)):
-                quoted = False
-                value = '(%s)' % ' '.join(map(quote, value))
+                # list items should be treated as literals, but
+                # nevertheless only get quoted when necessary
+                def quoteitem(term):
+                    if isinstance(term, unicode):
+                        term = term.encode('utf-8')
+                    quoted = quote(term)
+                    if not quoted.startswith('"') and not quoted == term:
+                        quoted = quote('"' + term + '"')
+                    return quoted
+                value = '(%s)' % ' '.join(map(quoteitem, value))
             elif isinstance(value, basestring):
-                quoted = value.startswith('"') and value.endswith('"')
                 value = quote(value)
-                if not value:       # don't search for an empty string, even if quoted
+                if not value:   # don't search for empty strings, even quoted
                     continue
             else:
-                logger.info('skipping unsupported value "%r" (%s)', value, name)
+                logger.info('skipping unsupported value "%r" (%s)',
+                    value, name)
                 continue
             if name is None:
-                if not quoted:      # don't prefix when value was quoted...
+                if value and value[0] not in '+-':
                     value = '+%s' % value
                 query.append(value)
             else:
@@ -95,4 +85,3 @@ class Search(object):
         query = ' '.join(query)
         logger.debug('built query "%s"', query)
         return query
-

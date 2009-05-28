@@ -7,6 +7,10 @@
       name="collective.solr.images"
       directory="images" />
 
+  <browser:resourceDirectory
+      name="collective.solr.resources"
+      directory="resources" />
+
   <browser:page
       for="*"
       name="solr-maintenance"
@@ -20,5 +24,19 @@
       template="errors.pt"
       class=".errors.ErrorView"
       permission="zope2.Public" />
+
+  <browser:viewlet
+      name="plone.searchbox"
+      manager="plone.app.layout.viewlets.interfaces.IPortalHeader"
+      class=".facets.SearchBox"
+      layer=".interfaces.IThemeSpecific"
+      permission="zope2.View" />
+
+  <browser:page
+      for="OFS.interfaces.IFolder"
+      name="search-facets"
+      template="facets.pt"
+      class=".facets.SearchFacetsView"
+      permission="zope2.View" />
 
 </configure>

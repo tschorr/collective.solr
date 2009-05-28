@@ -22,27 +22,28 @@ class ISolrSchema(Interface):
         description=_(u'The base prefix of the Solr instance to be used.'))
 
     async = Bool(title=_(u'Asynchronous indexing'), default=False,
-        description=_(u'Check this to enable asynchronous indexing operations, '
+        description=_(u'Check to enable asynchronous indexing operations, '
                        'which will improve Zope response times in return for '
                        'not having the Solr index updated immediately.'))
 
     index_timeout = Float(title=_(u'Index timeout'),
-        description=_(u'Number of seconds after which an index request will time out. '
-                       'Set to "0" to disable timeouts.'))
+        description=_(u'Number of seconds after which an index request will '
+                       'time out. Set to "0" to disable timeouts.'))
 
     search_timeout = Float(title=_(u'Search timeout'),
-        description=_(u'Number of seconds after which a search request will time out. '
-                       'Set to "0" to disable timeouts.'))
+        description=_(u'Number of seconds after which a search request will '
+                       'time out. Set to "0" to disable timeouts.'))
 
     max_results = Int(title=_(u'Maximum search results'),
-        description=_(u'Specify the maximum number of matches to be returned when '
-                       'searching.  Set to "0" to always return all results.'))
+        description=_(u'Specify the maximum number of matches to be returned '
+                       'when searching. Set to "0" to always return all '
+                       'results.'))
 
     required = List(title=_(u'Required query parameters'),
         description = _(u'Specify required query parameters, one per line. '
-                          'Searches will only get dispatched to Solr if any of '
-                          'the listed parameters is present in the query.  '
-                          'Leave empty to dispatch all searches.'),
+                         'Searches will only get dispatched to Solr if any '
+                         'of the listed parameters is present in the query. '
+                         'Leave empty to dispatch all searches.'),
         value_type = TextLine(), default = [], required = False)
 
     batch_size = Int(title=_(u'Results Batch Size'),
@@ -51,6 +52,11 @@ class ISolrSchema(Interface):
                          'value that is a multiple of your search page batch '
                          'size.'),
         default=100, required=True)
+
+    facets = List(title=_(u'Default search facets'),
+        description = _(u'Specify catalog indexes that should be queried for '
+                         'facet information, one per line. '),
+        value_type = TextLine(), default = [], required = False)
 
 
 class ISolrConnectionConfig(ISolrSchema):
@@ -147,3 +153,7 @@ class ISolrMaintenanceView(Interface):
             be used to ensure consistency between zope and solr after the
             solr server has been unavailable etc """
 
+    def catalogSync(index, batch=100):
+        """ add or sync a single solr index using data from the portal
+            catalog;  existing data in solr will be overwritten for the
+            given index """

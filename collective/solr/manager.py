@@ -19,6 +19,7 @@ class SolrConnectionConfig(Persistent):
 
     max_results = 0             # provide backwards compatibility
     required = []
+    facets = []
 
     def __init__(self):
         self.active = False
@@ -30,6 +31,7 @@ class SolrConnectionConfig(Persistent):
         self.search_timeout = 0
         self.max_results = 0
         self.required = []
+        self.facets = []
 
     def getId(self):
         """ return a unique id to be used with GenericSetup """
@@ -40,8 +42,9 @@ class SolrConnectionManager(object):
     """ a thread-local connection manager for solr """
     implements(ISolrConnectionManager)
 
-    def __init__(self, active=False):
-        self.setHost(active=active)
+    def __init__(self, active=None):
+        if isinstance(active, bool):
+            self.setHost(active=active)
 
     def setHost(self, active=False, host='localhost', port=8983, base='/solr'):
         """ set connection parameters """
@@ -72,7 +75,8 @@ class SolrConnectionManager(object):
         if conn is None and config.host is not None:
             host = '%s:%d' % (config.host, config.port)
             logger.debug('opening connection to %s', host)
-            conn = SolrConnection(host=host, solrBase=config.base, persistent=True)
+            conn = SolrConnection(host=host, solrBase=config.base,
+                persistent=True)
             setLocal('connection', conn)
         if conn is not None and timeout is not marker:
             conn.setTimeout(timeout)
@@ -110,4 +114,3 @@ class SolrConnectionManager(object):
             to the value specified for search operations """
         config = getUtility(ISolrConnectionConfig)
         self.setTimeout(config.search_timeout or None)
-
