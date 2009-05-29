@@ -22,10 +22,11 @@ def searchResults(self, REQUEST=None, **kw):
     kw = kw.copy()
     only_active = not kw.get('show_inactive', False)
     user = _getAuthenticatedUser(self)
-    kw['allowedRolesAndUsers'] = dict(
-            query=self._listAllowedRolesAndUsers(user),
-            operator='or',
-            )
+    #kw['allowedRolesAndUsers'] = dict(
+    #        query=self._listAllowedRolesAndUsers(user),
+    #        operator='or',
+    #        )
+    kw['allowedRolesAndUsers'] = self._listAllowedRolesAndUsers(user)
     log.debug(kw['allowedRolesAndUsers'])
     if only_active and not _checkPermission(AccessInactivePortalContent, self):
         kw['effectiveRange'] = DateTime()

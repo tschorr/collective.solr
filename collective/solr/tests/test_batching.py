@@ -1,44 +1,48 @@
-from unittest import defaultTestLoader
-from collective.solr.tests.base import SolrTestCase
 
-# test-specific imports go here...
-from zope.component import queryUtility, getUtilitiesFor
+from socket import error
+from socket import timeout
+from time import sleep
+from unittest import defaultTestLoader
+
 from collective.indexing.interfaces import IIndexQueueProcessor
+from collective.solr.batched import BatchedResults
+from collective.solr.exceptions import SolrInactiveException
 from collective.solr.interfaces import ISolrConnectionConfig
 from collective.solr.interfaces import ISolrConnectionManager
 from collective.solr.interfaces import ISolrIndexQueueProcessor
 from collective.solr.interfaces import ISearch
-from collective.solr.exceptions import SolrInactiveException
-from collective.solr.tests.utils import getData, fakehttp, fakeServer
+from collective.solr.tests.base import SolrTestCase
+from collective.solr.tests.utils import fakehttp
+from collective.solr.tests.utils import fakeServer
+from collective.solr.tests.utils import getData
+from collective.solr.tests.utils import numFound
+from collective.solr.utils import activate
 from transaction import commit
-from socket import error, timeout
-from time import sleep
+from zope.component import getUtilitiesFor
+from zope.component import queryUtility
 
 
 class BatchedTests(SolrTestCase):
 
     def afterSetUp(self):
-        schema = getData('plone_schema.xml')
-        self.proc = queryUtility(ISolrConnectionManager)
-        self.proc.setHost(active=True)
+        activate()
+        manager = queryUtility(ISolrConnectionManager)
+        self.connection = connection = manager.getConnection()
+        connection.deleteByQuery('[* TO *]')
+        connection.commit()
+        result = connection.search(q='[* TO *]').read()
+        self.assertEqual(numFound(result), 0)
+        # ignore any generated logging output
+        self.portal.REQUEST.RESPONSE.write = lambda x: x
+
+        config = queryUtility(ISolrConnectionConfig)
+        self.batch_size = config.batch_size = 5
 
     def beforeTearDown(self):
-        # resetting the solr configuration after each test isn't strictly
-        # needed at the moment, but it triggers the `ConnectionStateError`
-        # when the other tests (in `errors.txt`) is trying to perform an
-        # actual solr search...
-        self.proc.closeConnection(clearSchema=True)
-        self.proc.setHost(active=False)
-        config = queryUtility(ISolrConnectionConfig)
-        config.active = False
-        config.host = '127.0.0.1'
+        activate(active=False)
         commit()
 
     def testIteration(self):
-        config = queryUtility(ISolrConnectionConfig)
-        config.batch_size = 5
-        config.active = True
-        from collective.solr.dispatcher import BatchedResults
         for i in range(10):
             self.folder.invokeFactory('Document', id='doc%i' % i,
                     title='Document %i' % i)
@@ -56,10 +60,6 @@ class BatchedTests(SolrTestCase):
         commit()
 
     def testSlice(self):
-        config = queryUtility(ISolrConnectionConfig)
-        config.batch_size = 5
-        config.active = True
-        from collective.solr.dispatcher import BatchedResults
         for i in range(10):
             self.folder.invokeFactory('Document', id='doc%i' % i,
                     title='Document %i' % i)
@@ -96,10 +96,6 @@ class BatchedTests(SolrTestCase):
         commit()
 
     def testNegativeIndex(self):
-        config = queryUtility(ISolrConnectionConfig)
-        config.batch_size = 5
-        config.active = True
-        from collective.solr.dispatcher import BatchedResults
         for i in range(10):
             self.folder.invokeFactory('Document', id='doc%i' % i,
                     title='Document %i' % i)
@@ -121,10 +117,6 @@ class BatchedTests(SolrTestCase):
         commit()
 
     def testLimit(self):
-        config = queryUtility(ISolrConnectionConfig)
-        config.batch_size = 5
-        config.active = True
-        from collective.solr.dispatcher import BatchedResults
         for i in range(10):
             self.folder.invokeFactory('Document', id='doc%i' % i,
                     title='Document %i' % i)
@@ -142,10 +134,7 @@ class BatchedTests(SolrTestCase):
         commit()
 
     def testBatching(self):
-        config = queryUtility(ISolrConnectionConfig)
-        config.batch_size = batch_size = 5
-        config.active = True
-        from collective.solr.dispatcher import BatchedResults
+        batch_size = self.batch_size
         for i in range(10):
             self.folder.invokeFactory('Document', id='doc%i' % i,
                     title='Document %i' % i)
@@ -165,10 +154,7 @@ class BatchedTests(SolrTestCase):
         commit()
 
     def testIndexError(self):
-        config = queryUtility(ISolrConnectionConfig)
-        config.batch_size = batch_size = 5
-        config.active = True
-        from collective.solr.dispatcher import BatchedResults
+        batch_size = self.batch_size
         for i in range(10):
             self.folder.invokeFactory('Document', id='doc%i' % i,
                     title='Document %i' % i)
@@ -182,10 +168,7 @@ class BatchedTests(SolrTestCase):
         commit()
 
     def testEmptySearch(self):
-        config = queryUtility(ISolrConnectionConfig)
-        config.batch_size = batch_size = 5
-        config.active = True
-        from collective.solr.dispatcher import BatchedResults
+        batch_size = self.batch_size
         catalog = self.portal.portal_catalog
         results = catalog(SearchableText='jfakjweifjskdfjuiwehf')
         self.assert_(isinstance(results, BatchedResults),

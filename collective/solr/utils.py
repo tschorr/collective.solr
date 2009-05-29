@@ -40,10 +40,7 @@ def prepareData(data):
         for "allowedRolesAndUsers" etc """
     allowed = data.get('allowedRolesAndUsers', None)
     if allowed is not None:
-        if type(allowed) in (dict,):
-            allowed['query'] = [x.replace(':','$') for x in allowed['query']]
-        else:
-            data['allowedRolesAndUsers'] = [x.replace(':','$') for x in allowed]
+        data['allowedRolesAndUsers'] = [x.replace(':','$') for x in allowed]
     searchable = data.get('SearchableText', None)
     if searchable is not None:
         if isinstance(searchable, unicode):

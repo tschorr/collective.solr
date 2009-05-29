@@ -50,8 +50,6 @@ class QuoteTests(TestCase):
         self.assertEqual(quote('"fix and it"?'), '"fix and it"')
         self.assertEqual(quote('foo and bar and [foobar at foo.com]*'),
                                '(foo and bar and \[foobar at foo.com\])')
-        self.assertEqual(quote(' '), '" "')
-        self.assertEqual(quote(''), '""')
 
     def testQuotingWildcardSearches(self):
         self.assertEqual(quote('te?t'), 'te?t')
@@ -60,8 +58,6 @@ class QuoteTests(TestCase):
         self.assertEqual(quote('te*t'), 'te*t')
         self.assertEqual(quote('?test'), 'test')
         self.assertEqual(quote('*test'), 'test')
-        self.assertEqual(quote('" "'), '" "')
-        self.assertEqual(quote('""'), '')
 
     def testQuotingFuzzySearches(self):
         self.assertEqual(quote('roam~'), 'roam~')
@@ -169,8 +165,6 @@ class QueryTests(TestCase):
         self.assertEqual(bq(name='john@foo.com'), '+name:john@foo.com')
         self.assertEqual(bq(name=' '), '') # Whitespace is removed
         self.assertEqual(bq(name=''), '')
-        self.assertEqual(bq(name=' '), '+name:" "')
-        self.assertEqual(bq(name=''), '')
 
     def testMultiValueQueries(self):
         bq = self.search.buildQuery
@@ -236,8 +230,6 @@ class QueryTests(TestCase):
         self.assertEqual(bq(name='"john@foo.com"'), '+name:"john@foo.com"')
         self.assertEqual(bq(name='" "'), '+name:" "')
         self.assertEqual(bq(name='""'), '+name:\\"\\"')
-        self.assertEqual(bq(name='" "'), '+name:" "')
-        self.assertEqual(bq(name='""'), '')
 
     def testComplexQueries(self):
         bq = self.search.buildQuery
