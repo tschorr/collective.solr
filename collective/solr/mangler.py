@@ -79,8 +79,12 @@ def mangleQuery(keywords):
                 value = sep.join(map(str, map(convert, value)))
                 keywords[key] = '(%s)' % value
             del args['operator']
-        elif isinstance(value, basestring) and value.endswith('*'):
-            keywords[key] = '%s' % value.lower()
+        elif isinstance(value, basestring) and '*' in value:
+            parts = value.split(' ')
+            for part in parts:
+                if part.endswith('*'):
+                    part = part.lower()
+            keywords[key] = ' '.join(parts)
         else:
             keywords[key] = convert(value)
         assert not args, 'unsupported usage: %r' % args
