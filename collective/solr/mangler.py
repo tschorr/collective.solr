@@ -80,10 +80,11 @@ def mangleQuery(keywords):
                 keywords[key] = '(%s)' % value
             del args['operator']
         elif isinstance(value, basestring) and '*' in value:
-            parts = value.split(' ')
-            for part in parts:
+            parts = list()
+            for part in value.split(' '):
                 if part.endswith('*'):
                     part = part.lower()
+                parts.append(part)
             keywords[key] = ' '.join(parts)
         else:
             keywords[key] = convert(value)
