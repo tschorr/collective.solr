@@ -20,6 +20,7 @@ class SolrConnectionConfig(Persistent):
     max_results = 0             # provide backwards compatibility
     required = []
     facets = []
+    filter_queries = []
 
     def __init__(self):
         self.active = False
@@ -32,6 +33,7 @@ class SolrConnectionConfig(Persistent):
         self.max_results = 0
         self.required = []
         self.facets = []
+        self.filter_queries = []
 
     def getId(self):
         """ return a unique id to be used with GenericSetup """
@@ -41,6 +43,8 @@ class SolrConnectionConfig(Persistent):
 class SolrConnectionManager(object):
     """ a thread-local connection manager for solr """
     implements(ISolrConnectionManager)
+
+    lock = False
 
     def __init__(self, active=None):
         if isinstance(active, bool):
@@ -65,9 +69,8 @@ class SolrConnectionManager(object):
         if clearSchema:
             setLocal('schema', None)
 
-    def getConnection(self, timeout=marker):
-        """ returns an existing connection or opens one, optionally
-            allowing to directly specify a timeout value """
+    def getConnection(self):
+        """ returns an existing connection or opens one """
         config = getUtility(ISolrConnectionConfig)
         if not config.active:
             return None
@@ -78,8 +81,6 @@ class SolrConnectionManager(object):
             conn = SolrConnection(host=host, solrBase=config.base,
                 persistent=True)
             setLocal('connection', conn)
-        if conn is not None and timeout is not marker:
-            conn.setTimeout(timeout)
         return conn
 
     def getSchema(self):
@@ -96,12 +97,15 @@ class SolrConnectionManager(object):
                     logger.exception('exception while getting schema')
         return schema
 
-    def setTimeout(self, timeout):
+    def setTimeout(self, timeout, lock=marker):
         """ set the timeout on the current (or to be opened) connection
             to the given value """
-        conn = self.getConnection()
-        if conn is not None:
-            conn.setTimeout(timeout)
+        if lock is not marker:
+            self.lock = bool(lock)
+        if not self.lock:
+            conn = self.getConnection()
+            if conn is not None:
+                conn.setTimeout(timeout)
 
     def setIndexTimeout(self):
         """ set the timeout on the current (or to be opened) connection

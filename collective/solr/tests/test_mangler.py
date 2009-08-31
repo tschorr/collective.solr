@@ -1,9 +1,13 @@
 from unittest import TestCase, defaultTestLoader, main
+from zope.component import provideUtility
 from DateTime import DateTime
 
+from collective.solr.interfaces import ISolrConnectionConfig
+from collective.solr.manager import SolrConnectionConfig
 from collective.solr.mangler import mangleQuery
 from collective.solr.mangler import extractQueryParameters
 from collective.solr.mangler import cleanupQueryParameters
+from collective.solr.mangler import optimizeQueryParameters
 from collective.solr.parser import SolrSchema, SolrField
 
 
@@ -35,29 +39,29 @@ class QueryManglerTests(TestCase):
 
     def testMinRange(self):
         keywords = mangle(foo=[23], foo_usage='range:min')
-        self.assertEqual(keywords, {'foo': '"[23 TO *]"'})
+        self.assertEqual(keywords, {'foo': '[23 TO *]'})
         keywords = mangle(foo=dict(query=[23], range='min'))
-        self.assertEqual(keywords, {'foo': '"[23 TO *]"'})
+        self.assertEqual(keywords, {'foo': '[23 TO *]'})
         keywords = mangle(foo=Query(query=[23], range='min'))
-        self.assertEqual(keywords, {'foo': '"[23 TO *]"'})
+        self.assertEqual(keywords, {'foo': '[23 TO *]'})
 
     def testMaxRange(self):
         keywords = mangle(foo=[23], foo_usage='range:max')
-        self.assertEqual(keywords, {'foo': '"[* TO 23]"'})
+        self.assertEqual(keywords, {'foo': '[* TO 23]'})
         keywords = mangle(foo=dict(query=[23], range='max'))
-        self.assertEqual(keywords, {'foo': '"[* TO 23]"'})
+        self.assertEqual(keywords, {'foo': '[* TO 23]'})
         keywords = mangle(foo=dict(query=23, range='max'))
-        self.assertEqual(keywords, {'foo': '"[* TO 23]"'})
+        self.assertEqual(keywords, {'foo': '[* TO 23]'})
         keywords = mangle(foo=Query(query=23, range='max'))
-        self.assertEqual(keywords, {'foo': '"[* TO 23]"'})
+        self.assertEqual(keywords, {'foo': '[* TO 23]'})
 
     def testMinMaxRange(self):
         keywords = mangle(foo=(23, 42), foo_usage='range:min:max')
-        self.assertEqual(keywords, {'foo': '"[23 TO 42]"'})
+        self.assertEqual(keywords, {'foo': '[23 TO 42]'})
         keywords = mangle(foo=dict(query=(23, 42), range='min:max'))
-        self.assertEqual(keywords, {'foo': '"[23 TO 42]"'})
+        self.assertEqual(keywords, {'foo': '[23 TO 42]'})
         keywords = mangle(foo=Query(query=(23, 42), range='min:max'))
-        self.assertEqual(keywords, {'foo': '"[23 TO 42]"'})
+        self.assertEqual(keywords, {'foo': '[23 TO 42]'})
 
     def testDateConversion(self):
         day = DateTime('1972/05/11 UTC')
@@ -65,13 +69,13 @@ class QueryManglerTests(TestCase):
         self.assertEqual(keywords, {'foo': '1972-05-11T00:00:00.000Z'})
         keywords = mangle(foo=(day, day + 7), foo_usage='range:min:max')
         self.assertEqual(keywords, {'foo':
-            '"[1972-05-11T00:00:00.000Z TO 1972-05-18T00:00:00.000Z]"'})
+            '[1972-05-11T00:00:00.000Z TO 1972-05-18T00:00:00.000Z]'})
         keywords = mangle(foo=[day], foo_usage='range:min')
         self.assertEqual(keywords, {'foo':
-            '"[1972-05-11T00:00:00.000Z TO *]"'})
+            '[1972-05-11T00:00:00.000Z TO *]'})
         keywords = mangle(foo=dict(query=[day], range='min'))
         self.assertEqual(keywords, {'foo':
-            '"[1972-05-11T00:00:00.000Z TO *]"'})
+            '[1972-05-11T00:00:00.000Z TO *]'})
         keywords = mangle(foo=Query(day))
         self.assertEqual(keywords, {'foo': '1972-05-11T00:00:00.000Z'})
 
@@ -199,6 +203,8 @@ class QueryParameterTests(TestCase):
         self.assertEqual(params, {'facet': 'true'})
         params = extract({'facet.field': 'foo', 'facet.foo': 'bar'})
         self.assertEqual(params, {'facet.field': 'foo', 'facet.foo': 'bar'})
+        params = extract({'facet.field': ('foo', 'bar')})
+        self.assertEqual(params, {'facet.field': ('foo', 'bar')})
         # not 'facet*' though
         params = extract({'facetfoo': 'bar'})
         self.assertEqual(params, {})
@@ -206,6 +212,8 @@ class QueryParameterTests(TestCase):
         # passing parameters as keyword arguments...
         params = extract(dict(facet_foo='bar'))
         self.assertEqual(params, {'facet.foo': 'bar'})
+        params = extract(dict(facet_foo=('foo', 'bar')))
+        self.assertEqual(params, {'facet.foo': ('foo', 'bar')})
 
     def testAllowFilterQueryParameters(self):
         extract = extractQueryParameters
@@ -243,6 +251,47 @@ class QueryParameterTests(TestCase):
         schema['Title'] = SolrField(indexed=True)
         params = cleanup(dict(sort='sortable_title asc'), schema)
         self.assertEqual(params, dict(sort='Title asc'))
+
+    def testFilterQuerySubstitution(self):
+        def optimize(**params):
+            query = dict(a='a:23', b='b:42', c='c:(23 42)')
+            optimizeQueryParameters(query, params)
+            return query, params
+        # first test without the configuration utility
+        self.assertEqual(optimize(),
+            (dict(a='a:23', b='b:42', c='c:(23 42)'), dict()))
+        # now unconfigured...
+        config = SolrConnectionConfig()
+        provideUtility(config, ISolrConnectionConfig)
+        self.assertEqual(optimize(),
+            (dict(a='a:23', b='b:42', c='c:(23 42)'), dict()))
+        config.filter_queries = ['a']
+        self.assertEqual(optimize(),
+            (dict(b='b:42', c='c:(23 42)'), dict(fq=['a:23'])))
+        self.assertEqual(optimize(fq='x:13'),
+            (dict(b='b:42', c='c:(23 42)'), dict(fq=['x:13', 'a:23'])))
+        self.assertEqual(optimize(fq=['x:13', 'y:17']),
+            (dict(b='b:42', c='c:(23 42)'), dict(fq=['x:13', 'y:17', 'a:23'])))
+        config.filter_queries = ['a', 'c']
+        self.assertEqual(optimize(),
+            (dict(b='b:42'), dict(fq=['a:23', 'c:(23 42)'])))
+        self.assertEqual(optimize(fq='x:13'),
+            (dict(b='b:42'), dict(fq=['x:13', 'a:23', 'c:(23 42)'])))
+        self.assertEqual(optimize(fq=['x:13', 'y:17']),
+            (dict(b='b:42'), dict(fq=['x:13', 'y:17', 'a:23', 'c:(23 42)'])))
+
+    def testFilterFacetDependencies(self):
+        extract = extractQueryParameters
+        # any info about facet dependencies must not be passed on to solr
+        params = extract({'facet.field': 'foo:bar', 'facet.foo': 'bar:foo'})
+        self.assertEqual(params, {'facet.field': 'foo', 'facet.foo': 'bar'})
+        params = extract({'facet.field': ('foo:bar', 'bar:foo')})
+        self.assertEqual(params, {'facet.field': ('foo', 'bar')})
+        # also check the "underscore" variant...
+        params = extract(dict(facet_foo='bar:foo'))
+        self.assertEqual(params, {'facet.foo': 'bar'})
+        params = extract(dict(facet_foo=('foo:bar', 'bar:foo')))
+        self.assertEqual(params, {'facet.foo': ('foo', 'bar')})
 
 
 def test_suite():

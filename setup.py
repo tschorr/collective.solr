@@ -36,6 +36,7 @@ setup(name = 'collective.solr',
           'setuptools',
           'elementtree',
           'collective.indexing',
+          'collective.js.showmore',
       ],
       entry_points = '',
 )

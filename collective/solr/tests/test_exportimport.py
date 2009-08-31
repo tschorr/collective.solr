@@ -22,6 +22,7 @@ class SetupToolTests(SolrTestCase, TarballTester):
         config.required = ('foo', 'bar')
         config.batch_size = 40
         config.facets = ('type', 'state')
+        config.filter_queries = ('type',)
 
     def testImportStep(self):
         profile = 'profile-collective.solr:default'
@@ -42,6 +43,7 @@ class SetupToolTests(SolrTestCase, TarballTester):
         self.assertEqual(config.required, ('SearchableText', ))
         self.assertEqual(config.batch_size, 100)
         self.assertEqual(config.facets, ('portal_type', 'review_state'))
+        self.assertEqual(config.filter_queries, ('portal_type',))
 
     def testExportStep(self):
         tool = self.portal.portal_setup
@@ -97,6 +99,9 @@ SOLR_XML = """\
       <parameter name="type" />
       <parameter name="state" />
     </search-facets>
+    <filter-query-parameters>
+      <parameter name="type" />
+    </filter-query-parameters>
   </settings>
 </object>
 """

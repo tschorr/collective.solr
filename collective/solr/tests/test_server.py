@@ -1,5 +1,6 @@
 from unittest import TestSuite, defaultTestLoader
 from zope.component import getUtility
+from zope.schema.interfaces import IVocabularyFactory
 from transaction import commit, abort
 from DateTime import DateTime
 from time import sleep
@@ -13,6 +14,7 @@ from collective.solr.dispatcher import solrSearchResults, FallBackException
 from collective.solr.indexer import logger as logger_indexer
 from collective.solr.manager import logger as logger_manager
 from collective.solr.flare import PloneFlare
+from collective.solr.search import Search
 from collective.solr.solr import logger as logger_solr
 from collective.solr.utils import activate
 from collective.indexing.utils import getIndexer
@@ -25,9 +27,9 @@ class SolrMaintenanceTests(SolrTestCase):
         manager = getUtility(ISolrConnectionManager)
         self.connection = connection = manager.getConnection()
         # make sure nothing is indexed
-        connection.deleteByQuery('[* TO *]')
+        connection.deleteByQuery('+UID:[* TO *]')
         connection.commit()
-        result = connection.search(q='[* TO *]').read()
+        result = connection.search(q='+UID:[* TO *]').read()
         self.assertEqual(numFound(result), 0)
         # ignore any generated logging output
         self.portal.REQUEST.RESPONSE.write = lambda x: x
@@ -35,8 +37,18 @@ class SolrMaintenanceTests(SolrTestCase):
     def beforeTearDown(self):
         activate(active=False)
 
-    def search(self, query='[* TO *]'):
+    def search(self, query='+UID:[* TO *]'):
         return self.connection.search(q=query).read()
+
+    def counts(self, attributes=None):
+        """ crude count of metadata records in the database """
+        info = {}
+        result = self.search()
+        for record in result.split('<str name="')[1:]:
+            name = record[:record.find('"')]
+            if not attributes or name in attributes:
+                info[name] = info.get(name, 0) + 1
+        return numFound(result), info
 
     def testClear(self):
         # add something...
@@ -51,27 +63,147 @@ class SolrMaintenanceTests(SolrTestCase):
 
     def testReindex(self):
         maintenance = self.portal.unrestrictedTraverse('solr-maintenance')
+        # initially the solr index should be empty
+        self.assertEqual(numFound(self.search()), 0)
+        # after a full reindex all objects should appear...
         maintenance.reindex()
-        self.assertEqual(numFound(self.search()), 8)
+        found, counts = self.counts()
+        self.assertEqual(found, 8)
+        # let's also make sure the data is complete
+        self.assertEqual(counts['Title'], 8)
+        self.assertEqual(counts['physicalPath'], 8)
+        self.assertEqual(counts['portal_type'], 8)
+        self.assertEqual(counts['review_state'], 8)
 
     def testPartialReindex(self):
         maintenance = self.portal.unrestrictedTraverse('news/solr-maintenance')
+        # initially the solr index should be empty
+        self.assertEqual(numFound(self.search()), 0)
+        # after the partial reindex only some objects should appear...
         maintenance.reindex()
-        self.assertEqual(numFound(self.search()), 2)
+        found, counts = self.counts()
+        self.assertEqual(found, 2)
+        # let's also make sure their data is complete
+        self.assertEqual(counts['Title'], 2)
+        self.assertEqual(counts['physicalPath'], 2)
+        self.assertEqual(counts['portal_type'], 2)
+        self.assertEqual(counts['review_state'], 2)
+
+    def testReindexSingleOrFewAttributes(self):
+        # add subjects for testing multi-value fields
+        self.portal.news.setSubject(['foo', 'bar'])
+        # reindexing a set of attributes (or a single one) should not destroy
+        # any of the existing data fields, but merely add the new data...
+        maintenance = self.portal.unrestrictedTraverse('solr-maintenance')
+        maintenance.reindex(attributes=['UID', 'Title', 'Date', 'Subject'])
+        # after adding some index data only that very data should exist...
+        attributes = 'Title', 'portal_type', 'review_state', 'physicalPath'
+        self.assertEqual(self.counts(attributes),
+            (8, dict(Title=8)))
+        # reindexing `portal_type` should add the new metadata column
+        maintenance.reindex(attributes=['portal_type'])
+        self.assertEqual(self.counts(attributes),
+            (8, dict(Title=8, portal_type=8)))
+        # let's try that again with an EIOW, i.e. `physicalPath`...
+        maintenance.reindex(attributes=['physicalPath'])
+        self.assertEqual(self.counts(attributes),
+            (8, dict(Title=8, portal_type=8, physicalPath=8)))
+        # as well as with the extra catalog variables...
+        maintenance.reindex(attributes=['review_state'])
+        self.assertEqual(self.counts(attributes),
+            (8, dict(Title=8, portal_type=8, physicalPath=8, review_state=8)))
+
+    def testReindexKeepsExistingData(self):
+        # add subjects for testing multi-value fields
+        self.portal.news.setSubject(['foo', 'bar'])
+        attributes = ['UID', 'Title', 'Date', 'Subject']
+        maintenance = self.portal.unrestrictedTraverse('solr-maintenance')
+        maintenance.reindex(attributes=attributes)
+        # reindexing a single/few attributes shouldn't destroy existing data
+        # to check we remember the original results first...
+        search = getUtility(ISearch)
+        original = search('+UID:[* TO *]', sort='UID asc').results()
+        self.assertEqual(original.numFound, '8')
+        # let's sync and compare the data from a new search
+        maintenance.reindex(attributes=['portal_type', 'review_state'])
+        results = search('+UID:[* TO *]', sort='UID asc').results()
+        self.assertEqual(results.numFound, '8')
+        for idx, result in enumerate(results):
+            self.failUnless('portal_type' in result)
+            org = original[idx]
+            for attr in attributes:
+                self.assertEqual(org.get(attr, 42), result.get(attr, 42),
+                    '%r vs %r' % (org, result))
 
     def testCatalogSync(self):
         maintenance = self.portal.unrestrictedTraverse('solr-maintenance')
         # initially solr should have no data for the index
-        def count(index):
-            return numFound(self.search(query='%s:[* TO *]' % index))
-        self.assertEqual(count('review_state'), 0)
+        found, counts = self.counts()
+        self.failIf('review_state' in counts)
         # after syncing from the catalog the index data should be available
         maintenance.catalogSync(index='review_state')
-        self.assertEqual(count('review_state'), 8)
+        found, counts = self.counts()
+        self.assertEqual(counts['review_state'], 8)
         # but not for any of the other indexes
-        self.assertEqual(count('Title'), 0)
-        self.assertEqual(count('physicalPath'), 0)
-        self.assertEqual(count('portal_type'), 0)
+        self.failIf('Title' in counts, 'Title records?')
+        self.failIf('physicalPath' in counts, 'physicalPath records?')
+        self.failIf('portal_type' in counts, 'portal_type records?')
+
+    def testCatalogSyncKeepsExistingData(self):
+        # add subjects for testing multi-value fields
+        self.portal.news.setSubject(['foo', 'bar'])
+        attributes = ['UID', 'Title', 'Date', 'Subject']
+        maintenance = self.portal.unrestrictedTraverse('solr-maintenance')
+        maintenance.reindex(attributes=attributes)
+        # a catalog sync shouldn't destroy any of the existing data fields
+        # to check we remember the original results first...
+        search = getUtility(ISearch)
+        original = search('+UID:[* TO *]', sort='UID asc').results()
+        self.assertEqual(original.numFound, '8')
+        # let's sync and compare the data from a new search
+        maintenance.catalogSync(index='portal_type')
+        results = search('+UID:[* TO *]', sort='UID asc').results()
+        self.assertEqual(results.numFound, '8')
+        for idx, result in enumerate(results):
+            self.failUnless('portal_type' in result)
+            org = original[idx]
+            for attr in attributes:
+                self.assertEqual(org.get(attr, 42), result.get(attr, 42),
+                    '%r vs %r' % (org, result))
+
+    def testDisabledTimeoutDuringReindex(self):
+        log = []
+        def logger(*args):
+            log.extend(args)
+        logger_solr.exception = logger
+        # specify a very short timeout...
+        config = getUtility(ISolrConnectionConfig)
+        config.index_timeout = 0.01             # huh, solr is fast!
+        # reindexing should disable the timeout...
+        maintenance = self.portal.unrestrictedTraverse('solr-maintenance')
+        maintenance.reindex()
+        # there should have been no errors...
+        self.assertEqual(log, [])
+        # let's also reset the timeout and check the results...
+        config.index_timeout = None
+        self.assertEqual(numFound(self.search()), 8)
+
+    def testDisabledTimeoutDuringSyncing(self):
+        log = []
+        def logger(*args):
+            log.extend(args)
+        logger_solr.exception = logger
+        # specify a very short timeout...
+        config = getUtility(ISolrConnectionConfig)
+        config.index_timeout = 0.01             # huh, solr is fast!
+        # syncing should disable the timeout...
+        maintenance = self.portal.unrestrictedTraverse('solr-maintenance')
+        maintenance.sync()
+        # there should have been no errors...
+        self.assertEqual(log, [])
+        # let's also reset the timeout and check the results...
+        config.index_timeout = None
+        self.assertEqual(numFound(self.search()), 8)
 
 
 class SolrErrorHandlingTests(SolrTestCase):
@@ -182,6 +314,16 @@ class SolrServerTests(SolrTestCase):
         self.assertEqual(results.numFound, '1')
         self.assertEqual(results[0].Title, 'Foo')
         self.assertEqual(results[0].UID, self.folder.UID())
+
+    def testSearchingTwice(self):
+        connection = getUtility(ISolrConnectionManager).getConnection()
+        connection.reconnects = 0       # reset reconnect count first
+        results = self.search('+Title:Foo').results()
+        self.assertEqual(results.numFound, '0')
+        self.assertEqual(connection.reconnects, 0)
+        results = self.search('+Title:Foo').results()
+        self.assertEqual(results.numFound, '0')
+        self.assertEqual(connection.reconnects, 0)
 
     def testSolrSearchResultsFallback(self):
         self.assertRaises(FallBackException, solrSearchResults,
@@ -436,6 +578,14 @@ class SolrServerTests(SolrTestCase):
         result = connection.search(q='+Title:Foo').read()
         self.assertEqual(numFound(result), 1)
 
+    def testTimeoutResetAfterSearch(self):
+        self.config.search_timeout = 1      # specify the timeout
+        connection = getUtility(ISolrConnectionManager).getConnection()
+        self.assertEqual(connection.conn.sock.gettimeout(), None)
+        results = self.search('+Title:Foo').results()
+        self.assertEqual(results.numFound, '0')
+        self.assertEqual(connection.conn.sock.gettimeout(), None)
+
     def testEmptyStringSearch(self):
         self.maintenance.reindex()
         results = solrSearchResults(SearchableText=' ', path='/plone')
@@ -451,6 +601,47 @@ class SolrServerTests(SolrTestCase):
         results = news.queryCatalog()
         self.assertEqual([(r.Title, r.physicalPath) for r in results],
             [('News', '/plone/news'), ('News', '/plone/news/aggregator')])
+
+    def testSearchDateRange(self):
+        self.maintenance.reindex()
+        results = solrSearchResults(SearchableText='News',
+            created=dict(query=DateTime('1970/02/01'), range='min'))
+        self.assertEqual(len(results), 2)
+
+    def testSolrIndexesVocabulary(self):
+        vocab = getUtility(IVocabularyFactory, name='collective.solr.indexes')
+        indexes = [i.token for i in vocab(self.portal)]
+        self.failUnless('SearchableText' in indexes)
+        self.failUnless('physicalDepth' in indexes)
+        self.failIf('physicalPath' in indexes)
+
+    def testFilterQuerySubstitutionDuringSearch(self):
+        self.maintenance.reindex()
+        # first set up a logger to be able to test the query parameters
+        log = []
+        original = Search.search
+        def logger(*args, **parameters):
+            log.append((args, parameters))
+            return original(*args, **parameters)
+        Search.__call__ = logger
+        # a filter query should be used for `portal_type`;  like plone itself
+        # we inject the "friendly types" into the query (in `queryCatalog.py`)
+        # by using a keyword parameter...
+        request = dict(SearchableText='News')
+        results = solrSearchResults(request, portal_type='Topic')
+        self.assertEqual([(r.Title, r.physicalPath) for r in results],
+            [('News', '/plone/news/aggregator')])
+        self.assertEqual(len(log), 1)
+        self.assertEqual(log[-1][1]['fq'], ['+portal_type:Topic'], log)
+        # let's test again with an already existing filter query parameter
+        request = dict(SearchableText='News', fq='+review_state:published')
+        results = solrSearchResults(request, portal_type='Topic')
+        self.assertEqual([(r.Title, r.physicalPath) for r in results],
+            [('News', '/plone/news/aggregator')])
+        self.assertEqual(len(log), 2)
+        self.assertEqual(sorted(log[-1][1]['fq']),
+            ['+portal_type:Topic', '+review_state:published'], log)
+        Search.__call__ = original
 
 
 def test_suite():

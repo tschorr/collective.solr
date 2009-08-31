@@ -1,11 +1,14 @@
+from zope.component import queryUtility
 from DateTime import DateTime
+
+from collective.solr.interfaces import ISolrConnectionConfig
 from collective.solr.search import quote
 
 
 ranges = {
-    'min': '"[%s TO *]"',
-    'max': '"[* TO %s]"',
-    'min:max': '"[%s TO %s]"',
+    'min': '[%s TO *]',
+    'max': '[* TO %s]',
+    'min:max': '[%s TO %s]',
 }
 
 sort_aliases = {
@@ -111,9 +114,16 @@ def extractQueryParameters(args):
     if limit:
         params['rows'] = int(limit)
     for key, value in args.items():
-        if key in ('fq', 'fl', 'facet') or key.startswith('facet.'):
+        if key in ('fq', 'fl', 'facet'):
             params[key] = value
-        elif key.startswith('facet_'):
+        elif key.startswith('facet.') or key.startswith('facet_'):
+            name = lambda facet: facet.split(':', 1)[0]
+            if isinstance(value, list):
+                value = map(name, value)
+            elif isinstance(value, tuple):
+                value = tuple(map(name, value))
+            else:
+                value = name(value)
             params[key.replace('_', '.', 1)] = value
     return params
 
@@ -132,3 +142,22 @@ def cleanupQueryParameters(args, schema):
         else:
             del args['sort']
     return args
+
+
+def optimizeQueryParameters(query, params):
+    """ optimize query parameters by using filter queries for
+        configured indexes """
+    config = queryUtility(ISolrConnectionConfig)
+    fq = []
+    if config is not None:
+        for idx in config.filter_queries:
+            if idx in query:
+                fq.append(query[idx])
+                del query[idx]
+    if 'fq' in params:
+        if isinstance(params['fq'], list):
+            params['fq'].extend(fq)
+        else:
+            params['fq'] = [params['fq']] + fq
+    elif fq:
+        params['fq'] = fq

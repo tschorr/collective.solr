@@ -6,7 +6,20 @@ from DateTime import DateTime
 from collective.solr.interfaces import ISolrFlare
 
 
-class SolrFlare(object):
+class AttrDict(dict):
+    """ a dictionary with attribute access """
+
+    def __getattr__(self, name):
+        """ look up attributes in dict """
+        marker = []
+        value = self.get(name, marker)
+        if value is not marker:
+            return value
+        else:
+            raise AttributeError(name)
+
+
+class SolrFlare(AttrDict):
     """ a sol(a)r brain, i.e. a data container for search results """
     implements(ISolrFlare)
 
@@ -90,19 +103,6 @@ class SolrResponse(object):
         return self.results()[index]
 
 
-class AttrDict(dict):
-    """ a dictionary with attribute access """
-
-    def __getattr__(self, name):
-        """ look up attributes in dict """
-        marker = []
-        value = self.get(name, marker)
-        if value is not marker:
-            return value
-        else:
-            raise AttributeError(name)
-
-
 class SolrField(AttrDict):
     """ a schema field representation """
 
@@ -150,3 +150,9 @@ class SolrSchema(AttrDict):
                     required.append(name)
             elif elem.tag in ('uniqueKey', 'defaultSearchField'):
                 self[elem.tag] = elem.text
+
+    def fields(self):
+        """ return list of all fields the schema consists of """
+        for name, field in self.items():
+            if isinstance(field, SolrField):
+                yield field

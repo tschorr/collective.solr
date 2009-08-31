@@ -12,6 +12,7 @@ from collective.solr.mangler import mangleQuery
 from collective.solr.mangler import extractQueryParameters
 from collective.solr.mangler import cleanupQueryParameters
 from collective.solr.batched import BatchedResults
+from collective.solr.mangler import optimizeQueryParameters
 
 from collective.solr.monkey import patchCatalogTool, patchLazyCat
 patchCatalogTool()      # patch catalog tool to use the dispatcher...
@@ -78,6 +79,7 @@ def solrSearchResults(request=None, **keywords):
     mangleQuery(args)
     prepareData(args)
     query = search.buildQuery(**args)
+    optimizeQueryParameters(query, params)
 
     results = BatchedResults(search, query, config.batch_size, request,
             **params)

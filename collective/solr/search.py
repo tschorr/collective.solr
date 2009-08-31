@@ -34,9 +34,14 @@ class Search(object):
         if not 'rows' in parameters:
             config = queryUtility(ISolrConnectionConfig)
             parameters['rows'] = config.max_results or ''
+        if isinstance(query, dict):
+            query = ' '.join(query.values())
         logger.debug('searching for %r (%r)', query, parameters)
         response = connection.search(q=query, **parameters)
-        return SolrResponse(response)
+        results = SolrResponse(response)
+        response.close()
+        manager.setTimeout(None)
+        return results
 
     __call__ = search
 
@@ -46,7 +51,7 @@ class Search(object):
         schema = self.getManager().getSchema() or {}
         defaultSearchField = getattr(schema, 'defaultSearchField', None)
         args[None] = default
-        query = []
+        query = {}
         for name, value in args.items():
             field = schema.get(name or defaultSearchField, None)
             if field is None or not field.indexed:
@@ -79,9 +84,8 @@ class Search(object):
             if name is None:
                 if value and value[0] not in '+-':
                     value = '+%s' % value
-                query.append(value)
             else:
-                query.append('+%s:%s' % (name, value))
-        query = ' '.join(query)
+                value = '+%s:%s' % (name, value)
+            query[name] = value
         logger.debug('built query "%s"', query)
         return query

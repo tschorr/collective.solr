@@ -1,5 +1,5 @@
 from zope.interface import Interface
-from zope.schema import Bool, TextLine, Int, Float, List
+from zope.schema import Bool, TextLine, Int, Float, List, Choice
 from zope.i18nmessageid import MessageFactory
 from collective.indexing.interfaces import IIndexQueueProcessor
 
@@ -55,8 +55,17 @@ class ISolrSchema(Interface):
 
     facets = List(title=_(u'Default search facets'),
         description = _(u'Specify catalog indexes that should be queried for '
-                         'facet information, one per line. '),
+                         'facet information, one per line.'),
         value_type = TextLine(), default = [], required = False)
+
+    filter_queries = List(title=_(u'Filter query parameters'),
+        description = _(u'Specify query parameters for which filter queries '
+                         'should be used, one per line.  Please note that '
+                         'the below list of indexes might not be complete '
+                         'if the Solr server is not running or the '
+                         'connection hasn\'t been activated yet.'),
+        value_type = Choice(vocabulary='collective.solr.indexes'),
+        default = [], required = False)
 
 
 class ISolrConnectionConfig(ISolrSchema):
@@ -72,16 +81,16 @@ class ISolrConnectionManager(Interface):
     def closeConnection(clearSchema=False):
         """ close the current connection, if any """
 
-    def getConnection(timeout=object()):
-        """ returns an existing connection or opens one, optionally
-            allowing to directly specify a timeout value """
+    def getConnection():
+        """ returns an existing connection or opens one """
 
     def getSchema():
         """ returns the currently used schema or fetches it """
 
-    def setTimeout(timeout):
+    def setTimeout(timeout, lock=object()):
         """ set the timeout on the current (or to be opened) connection
-            to the given value """
+            to the given value and optionally lock it until explicitly
+            freed again """
 
     def setIndexTimeout():
         """ set the timeout on the current (or to be opened) connection
@@ -117,7 +126,9 @@ class ISearch(Interface):
         """ convenience alias for `search` """
 
     def buildQuery(default=None, **args):
-        """ helper to build a querystring for simple use-cases """
+        """ helper to build a query for simple use-cases; the query is
+            returned as a dictionary which might be string-joined or
+            passed to the `search` method as the `query` argument """
 
 
 class ICatalogTool(Interface):

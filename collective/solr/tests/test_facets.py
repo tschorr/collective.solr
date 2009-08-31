@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from unittest import TestSuite, defaultTestLoader
 from zope.interface import alsoProvides
 from zope.component import getMultiAdapter
@@ -6,7 +8,7 @@ from zope.publisher.browser import TestRequest
 from collective.solr.tests.utils import pingSolr
 from collective.solr.tests.base import SolrTestCase
 from collective.solr.browser.interfaces import IThemeSpecific
-from collective.solr.browser.facets import SearchBox
+from collective.solr.browser.facets import SearchBox, SearchFacetsView
 from collective.solr.dispatcher import solrSearchResults
 from collective.solr.utils import activate
 
@@ -66,6 +68,36 @@ class SolrFacettingTests(SolrTestCase):
         states = results.facet_counts['facet_fields']['review_state']
         self.assertEqual(states, dict(private=0, published=1))
 
+    def testFacettedSearchWithDependencies(self):
+        # facets depending on others should not show up initially
+        request = TestRequest()
+        request.form['SearchableText'] = 'News'
+        request.form['facet'] = 'true'
+        request.form['facet_field'] = ['portal_type',
+            'review_state:portal_type']
+        view = SearchFacetsView(self.portal, request)
+        view.kw = dict(results=solrSearchResults(request))
+        facets = [facet['title'] for facet in view.facets()]
+        self.assertEqual(facets, ['portal_type'])
+        # now again with the required facet selected
+        request.form['fq'] = 'portal_type:Topic'
+        view.kw = dict(results=solrSearchResults(request))
+        facets = [facet['title'] for facet in view.facets()]
+        self.assertEqual(facets, ['portal_type', 'review_state'])
+
+    def testFacettedSearchWithUnicodeFilterQuery(self):
+        self.portal.news.portal_type = u'Føø'.encode('utf-8')
+        self.maintenance.reindex()
+        request = TestRequest()
+        request.form['SearchableText'] = 'News'
+        request.form['facet'] = 'true'
+        request.form['facet_field'] = 'portal_type'
+        view = SearchFacetsView(self.portal, request)
+        view.kw = dict(results=solrSearchResults(request))
+        facets = view.facets()
+        self.assertEqual(sorted([c['name'] for c in facets[0]['counts']]),
+            [u'Føø', 'Topic'])
+
     def checkOrder(self, html, *order):
         for item in order:
             position = html.find(item)
@@ -84,7 +116,7 @@ class SolrFacettingTests(SolrTestCase):
         results = solrSearchResults(request)
         output = view(results=results)
         self.checkOrder(output, 'portal-searchfacets', 'Content type',
-            'Topic', '1', 'Large Plone Folder', '1')
+            'Topic', '1', 'Large Folder', '1')
 
     def testFacetFieldsInSearchBox(self):
         request = self.portal.REQUEST
@@ -148,6 +180,26 @@ class SolrFacettingTests(SolrTestCase):
         self.assertEqual(len(output.split('<dd>')), 2)
         # let's also make sure there are no empty filter queries
         self.failIf('fq=portal_type%3A&amp;' in output)
+
+    def testFacetOrder(self):
+        request = TestRequest()
+        request.form['SearchableText'] = 'News'
+        request.form['facet'] = 'true'
+        request.form['facet_field'] = ['portal_type', 'review_state']
+        alsoProvides(request, IThemeSpecific)
+        view = getMultiAdapter((self.portal, request), name='search-facets')
+        view = view.__of__(self.portal)     # needed to traverse `view/`
+        results = solrSearchResults(request)
+        output = view(results=results)
+        # the displayed facets should match the given order...
+        self.checkOrder(output, 'portal-searchfacets',
+            'Content type', 'Review state')
+        # let's also try the other way round...
+        request.form['facet_field'] = ['review_state', 'portal_type']
+        results = solrSearchResults(request)
+        output = view(results=results)
+        self.checkOrder(output, 'portal-searchfacets',
+            'Review state', 'Content type')
 
 
 def test_suite():

@@ -35,6 +35,7 @@ class SolrConfigXMLAdapter(XMLAdapterBase):
         self.context.required = []
         self.context.batch_size = 100
         self.context.facets = []
+        self.context.filter_queries = []
 
     def _initProperties(self, node):
         elems = node.getElementsByTagName('connection')
@@ -82,6 +83,11 @@ class SolrConfigXMLAdapter(XMLAdapterBase):
                     for elem in child.getElementsByTagName('parameter'):
                         value.append(elem.getAttribute('name'))
                     self.context.facets = tuple(map(str, value))
+                elif child.nodeName == 'filter-query-parameters':
+                    value = []
+                    for elem in child.getElementsByTagName('parameter'):
+                        value.append(elem.getAttribute('name'))
+                    self.context.filter_queries = tuple(map(str, value))
 
     def _createNode(self, name, value):
         node = self._doc.createElement(name)
@@ -118,6 +124,12 @@ class SolrConfigXMLAdapter(XMLAdapterBase):
             param = self._doc.createElement('parameter')
             param.setAttribute('name', name)
             facets.appendChild(param)
+        filter_queries = self._doc.createElement('filter-query-parameters')
+        append(filter_queries)
+        for name in self.context.filter_queries:
+            param = self._doc.createElement('parameter')
+            param.setAttribute('name', name)
+            filter_queries.appendChild(param)
         return node
 
 
