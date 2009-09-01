@@ -40,7 +40,11 @@ def prepareData(data):
         for "allowedRolesAndUsers" etc """
     allowed = data.get('allowedRolesAndUsers', None)
     if allowed is not None:
-        data['allowedRolesAndUsers'] = [x.replace(':','$') for x in allowed]
+        if isinstance(allowed, (list, tuple)):
+            data['allowedRolesAndUsers'] = [x.replace(':','$') 
+                    for x in allowed]
+        elif isinstance(allowed, basestring):
+            data['allowedRolesAndUsers'] = allowed.replace('\\:', '$')
     searchable = data.get('SearchableText', None)
     if searchable is not None:
         if isinstance(searchable, unicode):
