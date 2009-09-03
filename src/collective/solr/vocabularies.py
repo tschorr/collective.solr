@@ -1,10 +1,11 @@
-from zope.interface import implements
+from Products.CMFCore.utils import getToolByName
+from collective.solr.interfaces import ISolrConnectionConfig, \
+    ISolrConnectionManager
+from zope.app.component.hooks import getSite
 from zope.component import queryUtility
+from zope.interface import implements
 from zope.schema.interfaces import IVocabularyFactory
 from zope.schema.vocabulary import SimpleTerm, SimpleVocabulary
-from collective.solr.interfaces import ISolrConnectionConfig
-from collective.solr.interfaces import ISolrConnectionManager
-
 
 class SolrIndexes(object):
     """ vocabulary provider yielding all available solr indexes """
@@ -24,3 +25,19 @@ class SolrIndexes(object):
             if config is not None:
                 items = config.filter_queries
         return SimpleVocabulary([SimpleTerm(item) for item in items])
+
+
+class SolrScoreIndexes(object):
+    """ vocabulary provider yielding all available score indexes (right now Field an ZCText)"""
+    implements(IVocabularyFactory)
+
+    def __call__(self, context):
+        items = []
+        context = getSite()        
+        pc = getToolByName(context, 'portal_catalog')
+        idxs = pc.getIndexObjects()
+        for idx in idxs:
+            if idx.meta_type in ['FieldIndex','ZCTextIndex']:
+                items.append(SimpleTerm(idx.id, token=idx.id))
+                
+        return SimpleVocabulary(items)

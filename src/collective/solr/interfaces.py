@@ -1,10 +1,23 @@
 from zope.interface import Interface
-from zope.schema import Bool, TextLine, Int, Float, List, Choice
+from zope.schema import Bool, TextLine, Int, Float, List, Choice, Object
 from zope.i18nmessageid import MessageFactory
 from collective.indexing.interfaces import IIndexQueueProcessor
 
 _ = MessageFactory('collective.solr')
 
+class ISolrScore(Interface):
+    idx = Choice(title=_(u'Scorable index'),
+                 description=_(u'Choose scorable index to set score for.'), 
+                 vocabulary='collective.solr.scoreindexes', 
+                 required = True)
+    
+    value = TextLine(title=_(u'Value (if empty - SearchableText will be used)'),
+                     description=_(u'For ZCTextIndex this field should remain empty.'),
+                     required = False)
+    
+    score = Float(title=_(u'Score boost'),
+                  description=_(u'Set lucene score boost (float).'),
+                  required = True)
 
 class ISolrSchema(Interface):
 
@@ -60,6 +73,16 @@ class ISolrSchema(Interface):
         value_type = Choice(vocabulary='collective.solr.indexes'),
         default = [], required = False)
 
+    scores = List(title=_(u'Solr score parameters'),
+                  description=_(u'Define Solr score boosting. '
+                                'Empty value will be substituted with SearchableText. '),                    
+                  value_type = Object(ISolrScore, title=_(u"Solr score")),
+                  required = False)
+    
+    active_scores = Bool(title=_(u'Active'), default=False,
+        description=_(u'Check this to enable the Solr score boosting. '
+                       'Score will be used as default sorting index.'))    
+    
 
 class ISolrConnectionConfig(ISolrSchema):
     """ utility to hold the connection configuration for the solr server """

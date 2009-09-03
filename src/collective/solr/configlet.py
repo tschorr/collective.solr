@@ -5,10 +5,12 @@ from Products.CMFDefault.formlib.schema import SchemaAdapterBase
 from Products.CMFPlone.interfaces import IPloneSiteRoot
 from plone.app.controlpanel.form import ControlPanelForm
 from plone.app.controlpanel.widgets import MultiCheckBoxVocabularyWidget
+from plone.fieldsets.fieldsets import FormFieldsets
 
 from collective.solr.interfaces import ISolrSchema, _
 from collective.solr.interfaces import ISolrConnectionConfig
 from collective.solr.interfaces import ISolrConnectionManager
+from collective.solr.browser.custom_widgets import solar_scores_widget
 
 
 class SolrControlPanelAdapter(SchemaAdapterBase):
@@ -144,12 +146,45 @@ class SolrControlPanelAdapter(SchemaAdapterBase):
 
     filter_queries = property(getFilterQueryParameters, setFilterQueryParameters)
 
+    def getScores(self):
+        util = queryUtility(ISolrConnectionConfig)
+        return getattr(util, 'scores', [])
+
+    def setScores(self, value):
+        util = queryUtility(ISolrConnectionConfig)
+        if util is not None:
+            util.scores = value        
+
+    scores = property(getScores, setScores) 
+    
+    def getActive_scores(self):
+        util = queryUtility(ISolrConnectionConfig)
+        return getattr(util, 'active_scores', False)
+
+    def setActive_scores(self, value):
+        util = queryUtility(ISolrConnectionConfig)
+        if util is not None:
+            util.active_scores = value
+    
+    active_scores = property(getActive_scores, setActive_scores)
 
 class SolrControlPanel(ControlPanelForm):
 
-    form_fields = FormFields(ISolrSchema)
-    form_fields['filter_queries'].custom_widget = MultiCheckBoxVocabularyWidget
+    score_fields_id = ['active_scores', 'scores']
 
+    score_fields = FormFieldsets(ISolrSchema).select(*score_fields_id)
+    score_fields['scores'].custom_widget = solar_scores_widget
+    score_fields.id = 'score_fields'
+    score_fields.label = _(u'Score configuration')
+    score_fields.required = False    
+
+    default_fields = FormFieldsets(ISolrSchema).omit(*score_fields_id)
+    default_fields['filter_queries'].custom_widget = MultiCheckBoxVocabularyWidget
+    default_fields.id = 'default_fields'
+    default_fields.label = _(u'Default configuration')
+    default_fields.required = False    
+        
+    form_fields = FormFieldsets(default_fields, score_fields)
     label = _('Solr settings')
     description = _('Settings to enable and configure Solr integration.')
     form_name = _('Solr settings')

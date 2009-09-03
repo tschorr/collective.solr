@@ -34,6 +34,8 @@ class SolrConnectionConfig(Persistent):
         self.required = []
         self.facets = []
         self.filter_queries = []
+        self.active_scores = False
+        self.scores = []
 
     def getId(self):
         """ return a unique id to be used with GenericSetup """

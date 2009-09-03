@@ -63,6 +63,10 @@
         factory=".vocabularies.SolrIndexes"
         name="collective.solr.indexes" />
 
+    <utility
+        factory=".vocabularies.SolrScoreIndexes"
+        name="collective.solr.scoreindexes" />
+
   </configure>
 
   <adapter name="physicalPath" factory=".attributes.physicalPathIndexer" />
