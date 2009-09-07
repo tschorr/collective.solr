@@ -12,7 +12,6 @@ from collective.solr.mangler import mangleQuery
 from collective.solr.mangler import extractQueryParameters
 from collective.solr.mangler import cleanupQueryParameters
 from collective.solr.mangler import optimizeQueryParameters
-from collective.solr.score import buildScoreQuery
 
 from collective.solr.monkey import patchCatalogTool, patchLazyCat
 patchCatalogTool()      # patch catalog tool to use the dispatcher...
@@ -78,9 +77,6 @@ def solrSearchResults(request=None, **keywords):
     mangleQuery(args)
     prepareData(args)
     query = search.buildQuery(**args)
-    if config.active_scores:    
-        query = buildScoreQuery(query)
-        params['sort'] = "score desc"
     optimizeQueryParameters(query, params)
     __traceback_info__ = (query, params, args)
     response = search(query, fl='* score', **params)

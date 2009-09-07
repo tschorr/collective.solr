@@ -61,3 +61,12 @@ def findObjects(origin):
         if hasattr(aq_base(obj), 'objectIds'):
             for id in obj.objectIds():
                 paths.insert(idx + 1, path + '/' + id)
+
+def explainResults(response):
+    """ try to extract explanation from response """
+    debug = getattr(response,'debug', None)
+    if debug:
+        return debug.get('explain')
+    else:
+        return None
+    

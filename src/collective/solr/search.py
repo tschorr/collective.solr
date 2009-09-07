@@ -8,6 +8,7 @@ from collective.solr.interfaces import ISearch
 from collective.solr.parser import SolrResponse
 from collective.solr.exceptions import SolrInactiveException
 from collective.solr.queryparser import quote
+from collective.solr.score import buildScoreQuery
 
 logger = getLogger('collective.solr.search')
 
@@ -26,16 +27,24 @@ class Search(object):
 
     def search(self, query, **parameters):
         """ perform a search with the given querystring and parameters """
+        config = queryUtility(ISolrConnectionConfig)
+        
+        if config.active_scores:
+            query = buildScoreQuery(query)
+            parameters['sort'] = "score desc"            
+        if config.debug_query:
+            parameters['debugQuery'] = 'on'
+
         manager = self.getManager()
         manager.setSearchTimeout()
         connection = manager.getConnection()
         if connection is None:
             raise SolrInactiveException
         if not 'rows' in parameters:
-            config = queryUtility(ISolrConnectionConfig)
             parameters['rows'] = config.max_results or ''
         if isinstance(query, dict):
             query = ' '.join(query.values())
+            
         logger.debug('searching for %r (%r)', query, parameters)
         response = connection.search(q=query, **parameters)
         results = SolrResponse(response)

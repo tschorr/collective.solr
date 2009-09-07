@@ -5,6 +5,7 @@ Changelog
 -------------------
 
 * add score boost configuration [amleczko]
+* add debugQuery switch and updated search results template to display explanation [amleczko]
 
 1.0b14 - Unreleased
 -------------------

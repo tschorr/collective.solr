@@ -39,4 +39,11 @@
       class=".facets.SearchFacetsView"
       permission="zope2.View" />
 
+  <browser:page
+      for="OFS.interfaces.IFolder"
+      name="search-explain"
+      class=".explain.SearchExplainView"
+      permission="zope2.View" />
+
+
 </configure>

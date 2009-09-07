@@ -82,6 +82,10 @@ class ISolrSchema(Interface):
     active_scores = Bool(title=_(u'Active'), default=False,
         description=_(u'Check this to enable the Solr score boosting. '
                        'Score will be used as default sorting index.'))    
+
+    debug_query = Bool(title=_(u'Debug query'), default=False,
+        description=_(u'Check this to enable query debug. '
+                       'In the search results you will see Lucene score explanations.'))    
     
 
 class ISolrConnectionConfig(ISolrSchema):

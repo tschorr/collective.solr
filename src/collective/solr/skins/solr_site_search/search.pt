@@ -100,7 +100,8 @@
     </div>
 
     <div tal:condition="results"
-          tal:define="batch python:Batch(results, b_size, int(b_start), orphan=1);">
+          tal:define="batch python:Batch(results, b_size, int(b_start), orphan=1);
+          			  explain nocall: context/@@search-explain | nothing">
 
         <div tal:define="view nocall: context/@@search-facets | nothing"
              tal:condition="python: view"
@@ -166,6 +167,15 @@
                             </a><tal:separator condition="not: repeat/category/end">,</tal:separator>
                         </span>
                 </span>
+				
+				<div tal:condition="python: explain">
+					<a id="explain-showmore" href="#"
+					   tal:attributes="explain result/UID">Show explain</a>
+					<pre class="explain-info"
+						 tal:content="python: explain(results, result.UID)"
+						 tal:attributes="id string:explain-${result/UID}">						
+					</pre>
+				</div>
 
             </span>
 

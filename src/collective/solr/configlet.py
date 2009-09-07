@@ -167,10 +167,24 @@ class SolrControlPanelAdapter(SchemaAdapterBase):
             util.active_scores = value
     
     active_scores = property(getActive_scores, setActive_scores)
+    
+    def getDebug_query(self):
+        util = queryUtility(ISolrConnectionConfig)
+        return getattr(util, 'debug_query', False)
+
+    def setDebug_query(self, value):
+        util = queryUtility(ISolrConnectionConfig)
+        if util is not None:
+            util.debug_query = value
+    
+    debug_query = property(getDebug_query, setDebug_query)
+        
+    
+    
 
 class SolrControlPanel(ControlPanelForm):
 
-    score_fields_id = ['active_scores', 'scores']
+    score_fields_id = ['active_scores', 'scores', 'debug_query']
 
     score_fields = FormFieldsets(ISolrSchema).select(*score_fields_id)
     score_fields['scores'].custom_widget = solar_scores_widget

@@ -35,6 +35,7 @@ class SolrConnectionConfig(Persistent):
         self.facets = []
         self.filter_queries = []
         self.active_scores = False
+        self.debug_query = False
         self.scores = []
 
     def getId(self):
