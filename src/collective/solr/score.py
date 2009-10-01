@@ -11,7 +11,7 @@ class ScoreFactory(object):
         if not self.value:
             return '%(search)s'
         else:
-            return self.value
+            return str(self.value)
 
     def asTuple(self):
         return (self.idx, self.query, self.score)
@@ -23,7 +23,7 @@ def buildScoreQuery(query):
     config = queryUtility(ISolrConnectionConfig)
     searchstring = query.get('SearchableText')
     if searchstring: 
-        searchstring = searchstring.split(':')[-1]
+        searchstring = str(searchstring.split(':')[-1])
     for score in config.scores:
         if not score.value and not searchstring:
             continue
