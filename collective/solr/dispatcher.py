@@ -81,6 +81,6 @@ def solrSearchResults(request=None, **keywords):
     query = search.buildQuery(**args)
     optimizeQueryParameters(query, params)
 
-    results = BatchedResults(search, query, config.batch_size, request,
-            **params)
-    return results
+    __traceback_info__ = (query, params, args)
+
+    return BatchedResults(search, query, config.batch_size, request, **params)

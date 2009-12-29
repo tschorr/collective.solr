@@ -132,7 +132,6 @@ class SiteSearchTests(SolrTestCase):
         config = queryUtility(ISolrConnectionConfig)
         config.active = True
         config.port = 55555     # random port so the real solr might still run
-        search = queryUtility(ISearch)
         catalog = self.portal.portal_catalog
         catalog.delIndex('SearchableText')
         self.failIf('SearchableText' in catalog.indexes())
@@ -162,6 +161,7 @@ class SiteSearchTests(SolrTestCase):
     def testSchemaUrlFallback(self):
         config = queryUtility(ISolrConnectionConfig)
         config.active = True
+        config.port = 55555         # random port so the real solr can still run
         def notfound(handler):      # set up fake 404 response
             self.assertEqual(handler.path,
                 '/solr/admin/file/?file=schema.xml')
@@ -175,7 +175,7 @@ class SiteSearchTests(SolrTestCase):
         schema = queryUtility(ISolrConnectionManager).getSchema()
         thread.join()               # the server thread must always be joined
         self.assertEqual(responses, [])
-        self.assertEqual(len(schema), 20)   # 20 items defined in schema.xml
+        self.assertEqual(len(schema), 21)   # 21 items defined in schema.xml
 
 
 class SiteSetupTests(SolrTestCase):

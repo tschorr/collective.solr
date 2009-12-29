@@ -141,6 +141,8 @@ def cleanupQueryParameters(args, schema):
             args['sort'] = '%s %s' % (field, order)
         else:
             del args['sort']
+    if 'facet.field' in args and not 'facet' in args:
+        args['facet'] = 'true'
     return args
 
 

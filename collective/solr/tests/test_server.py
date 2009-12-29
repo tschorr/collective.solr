@@ -205,6 +205,90 @@ class SolrMaintenanceTests(SolrTestCase):
         config.index_timeout = None
         self.assertEqual(numFound(self.search()), 8)
 
+    def testMetadataHelper(self):
+        search = self.portal.portal_catalog.unrestrictedSearchResults
+        maintenance = self.portal.unrestrictedTraverse('solr-maintenance')
+        items = dict([(b.UID, b.modified) for b in search()])
+        metadata = maintenance.metadata('modified', key='UID')
+        self.assertEqual(len(metadata), 8)
+        self.assertEqual(items, metadata)
+        # getting partial metadata should also be possible...
+        path = '/plone/news'
+        items = dict([(b.UID, b.modified) for b in search(path=path)])
+        metadata = maintenance.metadata('modified', key='UID', path=path)
+        self.assertEqual(len(metadata), 2)
+        self.assertEqual(items, metadata)
+
+    def testDiffHelper(self):
+        search = self.portal.portal_catalog.unrestrictedSearchResults
+        maintenance = self.portal.unrestrictedTraverse('solr-maintenance')
+        full_items = set([b.UID for b in search()])
+        news_items = set([b.UID for b in search(path='/plone/news')])
+        event_items = set([b.UID for b in search(path='/plone/events')])
+        # without an index run all items should need indexing...
+        index, reindex, unindex = maintenance.diff(path='/plone')
+        self.assertEqual(set(index), full_items)
+        self.assertEqual(reindex, [])
+        self.assertEqual(unindex, [])
+        # after partially reindexing only some are still needed...
+        self.portal.unrestrictedTraverse('news/solr-maintenance').reindex()
+        index, reindex, unindex = maintenance.diff(path='/plone')
+        self.assertEqual(set(index), full_items.difference(news_items))
+        self.assertEqual(reindex, [])
+        self.assertEqual(unindex, [])
+        # a full reindex brings things up to date, i.e. no syncing required...
+        maintenance.reindex()
+        index, reindex, unindex = maintenance.diff(path='/plone')
+        self.assertEqual(index, [])
+        self.assertEqual(reindex, [])
+        self.assertEqual(unindex, [])
+        # after a network outtage some items might need (re|un)indexing...
+        activate(active=False)
+        self.setRoles(['Manager'])
+        self.portal.news.processForm(values={'title': 'Foos'})
+        self.portal.manage_delObjects('events')
+        activate(active=True)
+        index, reindex, unindex = maintenance.diff(path='/plone')
+        self.assertEqual(index, [])
+        self.assertEqual(reindex, [self.portal.news.UID()])
+        self.assertEqual(set(unindex), event_items)
+
+    def testDiffHelperForPartialContent(self):
+        # the helper to determine index differences also works from
+        # a given path, returning only partial differences...
+        search = self.portal.portal_catalog.unrestrictedSearchResults
+        maintenance = self.portal.unrestrictedTraverse('solr-maintenance')
+        news_items = set([b.UID for b in search(path='/plone/news')])
+        # initially only the items within the given path need indexing...
+        index, reindex, unindex = maintenance.diff(path='/plone/news')
+        self.assertEqual(set(index), news_items)
+        self.assertEqual(reindex, [])
+        self.assertEqual(unindex, [])
+        # after reindexing that subtree there should be no differences left...
+        self.portal.unrestrictedTraverse('news/solr-maintenance').reindex()
+        index, reindex, unindex = maintenance.diff(path='/plone/news')
+        self.assertEqual(index, [])
+        self.assertEqual(reindex, [])
+        self.assertEqual(unindex, [])
+        # the same is true after a full reindex, of course...
+        maintenance.reindex()
+        index, reindex, unindex = maintenance.diff(path='/plone/news')
+        self.assertEqual(index, [])
+        self.assertEqual(reindex, [])
+        self.assertEqual(unindex, [])
+        # after a network outtage some items might need (re|un)indexing...
+        aggregator = self.portal.news.aggregator.UID()
+        activate(active=False)
+        self.setRoles(['Manager'])
+        self.portal.news.processForm(values={'title': 'Foos'})
+        self.portal.news.manage_delObjects('aggregator')
+        self.portal.manage_delObjects('events')
+        activate(active=True)
+        index, reindex, unindex = maintenance.diff(path='/plone/news')
+        self.assertEqual(index, [])
+        self.assertEqual(reindex, [self.portal.news.UID()])
+        self.assertEqual(unindex, [aggregator])
+
 
 class SolrErrorHandlingTests(SolrTestCase):
 
@@ -223,7 +307,6 @@ class SolrErrorHandlingTests(SolrTestCase):
             log.extend(args)
         logger_indexer.exception = logger
         logger_solr.exception = logger
-        config = getUtility(ISolrConnectionConfig)
         self.config.active = True
         self.folder.processForm(values={'title': 'Foo'})
         commit()                    # indexing on commit, schema gets cached
@@ -332,7 +415,7 @@ class SolrServerTests(SolrTestCase):
     def testSolrSearchResults(self):
         self.maintenance.reindex()
         results = solrSearchResults(SearchableText='News')
-        self.assertEqual([(r.Title, r.physicalPath) for r in results],
+        self.assertEqual(sorted([(r.Title, r.physicalPath) for r in results]),
             [('News', '/plone/news'), ('News', '/plone/news/aggregator')])
 
     def testSolrSearchResultsWithUnicodeTitle(self):
@@ -349,13 +432,13 @@ class SolrServerTests(SolrTestCase):
         self.failUnless(isinstance(response.responseHeader, dict))
         headers = response.responseHeader
         self.assertEqual(sorted(headers), ['QTime', 'params', 'status'])
-        self.assertEqual(headers['params']['q'], '+SearchableText:News')
+        self.assertEqual(headers['params']['q'], '+SearchableText:(news* OR News)')
 
     def testSolrSearchResultsWithDictRequest(self):
         self.maintenance.reindex()
         results = solrSearchResults({'SearchableText': 'News'})
         self.failUnless([r for r in results if isinstance(r, PloneFlare)])
-        self.assertEqual([(r.Title, r.physicalPath) for r in results],
+        self.assertEqual(sorted([(r.Title, r.physicalPath) for r in results]),
             [('News', '/plone/news'), ('News', '/plone/news/aggregator')])
 
     def testRequiredParameters(self):
@@ -366,12 +449,12 @@ class SolrServerTests(SolrTestCase):
         config = getUtility(ISolrConnectionConfig)
         config.required = []
         results = solrSearchResults(Title='News')
-        self.assertEqual([(r.Title, r.physicalPath) for r in results],
+        self.assertEqual(sorted([(r.Title, r.physicalPath) for r in results]),
             [('News', '/plone/news'), ('News', '/plone/news/aggregator')])
         # specifying multiple values should required only one of them...
         config.required = ['Title', 'foo']
         results = solrSearchResults(Title='News')
-        self.assertEqual([(r.Title, r.physicalPath) for r in results],
+        self.assertEqual(sorted([(r.Title, r.physicalPath) for r in results]),
             [('News', '/plone/news'), ('News', '/plone/news/aggregator')])
         # but solr won't be used if none of them is present...
         config.required = ['foo', 'bar']
@@ -599,7 +682,7 @@ class SolrServerTests(SolrTestCase):
         crit = news.addCriterion('SearchableText', 'ATSimpleStringCriterion')
         crit.setValue('News')
         results = news.queryCatalog()
-        self.assertEqual([(r.Title, r.physicalPath) for r in results],
+        self.assertEqual(sorted([(r.Title, r.physicalPath) for r in results]),
             [('News', '/plone/news'), ('News', '/plone/news/aggregator')])
 
     def testSearchDateRange(self):
@@ -642,6 +725,36 @@ class SolrServerTests(SolrTestCase):
         self.assertEqual(sorted(log[-1][1]['fq']),
             ['+portal_type:Topic', '+review_state:published'], log)
         Search.__call__ = original
+
+    def testDefaultOperatorIsOR(self):
+        schema = self.search.getManager().getSchema()
+        if schema['solrQueryParser'].defaultOperator == 'OR':
+            self.folder.invokeFactory('Document', id='doc1', title='Foo')
+            self.folder.invokeFactory('Document', id='doc2', title='Bar')
+            self.folder.invokeFactory('Document', id='doc3', title='Foo Bar')
+            commit()                        # indexing happens on commit
+            request = dict(SearchableText='Bar Foo')
+            results = solrSearchResults(request)
+            self.assertEqual(len(results), 3)
+
+    def testDefaultOperatorIsAND(self):
+        schema = self.search.getManager().getSchema()
+        if schema['solrQueryParser'].defaultOperator == 'AND':
+            self.folder.invokeFactory('Document', id='doc1', title='Foo')
+            self.folder.invokeFactory('Document', id='doc2', title='Bar')
+            self.folder.invokeFactory('Document', id='doc3', title='Foo Bar')
+            commit()                        # indexing happens on commit
+            request = dict(SearchableText='Bar Foo')
+            results = solrSearchResults(request)
+            self.assertEqual(len(results), 1)
+
+    def testMultiValueSearch(self):
+        self.maintenance.reindex()
+        results = solrSearchResults(SearchableText='New*',
+            portal_type=['Large Plone Folder', 'Document'])
+        self.assertEqual(len(results), 2)
+        self.assertEqual(sorted([r.physicalPath for r in results]),
+            ['/plone/front-page', '/plone/news'])
 
 
 def test_suite():
