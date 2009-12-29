@@ -71,6 +71,9 @@ class Search(object):
                     quoted = quote(term)
                     if not quoted.startswith('"') and not quoted == term:
                         quoted = quote('"' + term + '"')
+                    # XXX Investigate LinguaPlone: Language = ['en', '']
+                    if quoted == '':
+                        quoted = "''"
                     return quoted
                 value = '(%s)' % ' OR '.join(map(quoteitem, value))
             elif isinstance(value, basestring):
