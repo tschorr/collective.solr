@@ -1,8 +1,31 @@
 Changelog
 =========
 
-1.0b16 - Unreleased
+1.0b18 - Unreleased
 -------------------
+
+
+1.0b17 - Released January 21, 2010
+----------------------------------
+
+* Don't confuse pre-configured filter queries with facet selections.
+  [witsch]
+
+* Always display selected facets, even, or especially, without search results.
+  [witsch]
+
+
+1.0b16 - Released January 11, 2010
+----------------------------------
+
+* Remove `catalogSync` maintenance view since it would need to fetch
+  additional data (for non-stored indices) from the objects themselves in
+  order to work correctly.
+  [witsch]
+
+* Fix `reindex` maintenance view to preserve data that cannot be fetched from
+  Solr during partial indexing, i.e. indices that are not stored.
+  [witsch]
 
 * Use wildcard searches for simple search terms to reflect Plone's default
   behaviour.
