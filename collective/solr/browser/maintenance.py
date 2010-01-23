@@ -100,7 +100,7 @@ class SolrMaintenanceView(BrowserView):
         conn.commit()
         return 'solr index cleared.'
 
-    def reindex(self, batch=100, skip=0, cache=1000, attributes=None):
+    def reindex(self, batch=100, skip=0, cache=10000, attributes=None):
         """ find all contentish objects (meaning all objects derived from one
             of the catalog mixin classes) and (re)indexes them """
         manager = queryUtility(ISolrConnectionManager)
@@ -138,8 +138,14 @@ class SolrMaintenanceView(BrowserView):
         single = timer()        # real time for single object
         cpi = checkpointIterator(checkPoint, batch)
         count = 0
-        if attributes is not None and not key in attributes:
-            attributes.append(key)
+        if attributes is not None:
+            if not key in attributes:
+                attributes.append(key)
+            for field in manager.getSchema().fields():
+                if not field.stored:    # fields not stored need to be added
+                    log('adding non-stored field "%s" to attribute list...\n'
+                        % field.name)
+                    attributes.append(field.name)
         for path, obj in findObjects(self.context):
             if indexable(obj):
                 count += 1
@@ -202,7 +208,7 @@ class SolrMaintenanceView(BrowserView):
         index = uids.keys()
         return index, reindex, unindex
 
-    def sync(self, batch=100, cache=1000):
+    def sync(self, batch=100, cache=10000):
         """ sync the solr index with the portal catalog;  records contained
             in the catalog but not in solr will be indexed and records not
             contained in the catalog can be optionally removed;  this can
@@ -225,8 +231,10 @@ class SolrMaintenanceView(BrowserView):
             len(index), len(reindex), len(unindex)))
         processed = 0
         def checkPoint():
-            log('intermediate commit (%d objects processed, '
-                'last batch in %s)...\n' % (processed, lap.next()))
+            msg = 'intermediate commit (%d objects processed, ' \
+                  'last batch in %s)...\n' % (processed, lap.next())
+            log(msg)
+            logger.info(msg)
             proc.commit(wait=True)
             manager.getConnection().reset()     # force new connection
             if cache:
@@ -278,48 +286,6 @@ class SolrMaintenanceView(BrowserView):
         manager.setTimeout(None, lock=False)    # reset the timeout lock
         log('solr index synced.\n')
         msg = 'processed %d object(s) in %s (%s cpu time).'
-        msg = msg % (processed, real.next(), cpu.next())
-        log(msg)
-        logger.info(msg)
-
-    def catalogSync(self, index, batch=1000):
-        """ add or sync a single solr index using data from the portal
-            catalog;  existing data in solr will be overwritten for the
-            given index """
-        manager = queryUtility(ISolrConnectionManager)
-        manager.setTimeout(None, lock=True) # don't time out during reindexing
-        log = self.mklog()
-        log('getting data for "%s" from portal catalog...\n' % index)
-        key = manager.getSchema().uniqueKey
-        data = self.metadata(index, key=key)
-        log('syncing "%s" from portal catalog to solr...\n' % index)
-        real = timer()          # real time
-        lap = timer()           # real lap time (for intermediate commits)
-        cpu = timer(clock)      # cpu time
-        processed = 0
-        conn = manager.getConnection()
-        updates = {}            # list to hold data to be updated
-        def checkPoint():
-            uids = updates.keys()
-            flares = solrDataFor(uids)
-            for uid, value in updates.items():
-                flare = flares.get(uid, {key: uid})
-                flare[index] = value
-                conn.add(**flare)
-            updates.clear()     # clear pending updates
-            log('intermediate commit (%d items processed, '
-                'last batch in %s)...\n' % (processed, lap.next()))
-            conn.commit()
-            manager.getConnection().reset()     # force new connection
-        cpi = checkpointIterator(checkPoint, batch)
-        for uid, value in data.items():
-            updates[uid] = value
-            processed += 1
-            cpi.next()
-        checkPoint()            # make sure to process the last batch
-        manager.setTimeout(None, lock=False)    # reset the timeout lock
-        log('portal catalog data synced.\n')
-        msg = 'processed %d items in %s (%s cpu time).'
         msg = msg % (processed, real.next(), cpu.next())
         log(msg)
         logger.info(msg)
