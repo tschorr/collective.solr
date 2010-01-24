@@ -1,8 +1,25 @@
 Changelog
 =========
 
-1.0b18 - Unreleased
+1.0b20 - Unreleased
 -------------------
+
+
+1.0b19 - Released January 24, 2010
+----------------------------------
+
+* Fix partial reindexing to preserve data for indices that are not stored.
+  [witsch]
+
+* Help with improved logging of auto-flushes for easier performance tuning.
+  [witsch]
+
+
+1.0b18 - Released January 23, 2010
+----------------------------------
+
+* Work around layout issue regarding facet counts on IE6.
+  [witsch]
 
 
 1.0b17 - Released January 21, 2010
