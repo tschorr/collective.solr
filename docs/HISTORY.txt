@@ -1,8 +1,20 @@
 Changelog
 =========
 
-1.0b20 - Unreleased
+1.0b21 - Unreleased
 -------------------
+
+
+1.0b20 - Released January 26, 2010
+----------------------------------
+
+* Fix reindexing to always provide data for all fields defined in the schema
+  as support for "updateable/modifiable documents" is only planned for Solr
+  1.5.  See https://issues.apache.org/jira/browse/SOLR-139 for more info.
+  [witsch]
+
+* Fix CSS issues regarding facet display on IE6.
+  [witsch]
 
 
 1.0b19 - Released January 24, 2010
