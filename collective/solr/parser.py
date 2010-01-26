@@ -1,3 +1,4 @@
+from ordereddict import OrderedDict
 from zope.interface import implements
 from elementtree.ElementTree import iterparse
 from StringIO import StringIO
@@ -45,7 +46,7 @@ unmarshallers = {
 # nesting tags along with their factories
 nested = {
     'arr': list,
-    'lst': dict,
+    'lst': OrderedDict,
     'result': SolrResults,
     'doc': SolrFlare,
 }

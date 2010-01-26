@@ -1,4 +1,5 @@
 from unittest import TestCase, defaultTestLoader, main
+from ordereddict import OrderedDict
 from DateTime import DateTime
 
 from collective.solr.parser import SolrResponse
@@ -65,7 +66,7 @@ class ParserTests(TestCase):
         self.assertEqual(results.start, '0')
         self.assertEqual(len(results), 0)
         headers = response.responseHeader
-        self.assertEqual(type(headers), type({}))
+        self.assertEqual(type(headers), type(OrderedDict()))
         self.assertEqual(headers['status'], 0)
         self.assertEqual(headers['QTime'], 1)
         self.assertEqual(headers['params']['facet.limit'], '-1')
@@ -75,13 +76,28 @@ class ParserTests(TestCase):
         self.assertEqual(headers['params']['indent'], '10')
         self.assertEqual(headers['params']['q'], 'solr')
         counts = response.facet_counts
-        self.assertEqual(type(counts), type({}))
+        self.assertEqual(type(counts), type(OrderedDict()))
         self.assertEqual(counts['facet_queries'], {})
         self.assertEqual(counts['facet_fields']['cat']['electronics'], 0)
         self.assertEqual(counts['facet_fields']['cat']['monitor'], 0)
         self.assertEqual(counts['facet_fields']['cat']['search'], 1)
         self.assertEqual(counts['facet_fields']['cat']['software'], 1)
         self.assertEqual(counts['facet_fields']['inStock']['true'], 1)
+
+    def testParseFacetFieldsOrderSearchResults(self):
+        facet_xml_response = getData('facet_xml_ordered.txt')
+        response = SolrResponse(facet_xml_response)
+        results = response.response     # the result set is named 'response'
+        counts = response.facet_counts
+        fields = counts['facet_fields']
+        self.assertEqual(type(fields), type(OrderedDict()))
+        self.assertEqual(fields.keys(), ['year'])
+        years = fields['year']
+        self.assertEqual(type(years), type(OrderedDict()))
+        self.assertEqual(years.keys(), ['1980', '1985', '1943', '1947',
+                                        '1964', '1981', '1911', '1960',
+                                        '1963', '1966', '1969', '1971'])
+        self.assertEqual(years.values(), [3, 3, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1])
 
     def testParseDateFacetSearchResults(self):
         facet_xml_response = getData('date_facet_xml_response.txt')
@@ -91,7 +107,7 @@ class ParserTests(TestCase):
         self.assertEqual(results.start, '0')
         self.assertEqual(len(results), 0)
         headers = response.responseHeader
-        self.assertEqual(type(headers), type({}))
+        self.assertEqual(type(headers), type(OrderedDict()))
         self.assertEqual(headers['status'], 0)
         self.assertEqual(headers['QTime'], 5)
         self.assertEqual(headers['params']['facet.date'], 'timestamp')
@@ -104,9 +120,9 @@ class ParserTests(TestCase):
         self.assertEqual(headers['params']['indent'], 'true')
         self.assertEqual(headers['params']['q'], '*:*')
         counts = response.facet_counts
-        self.assertEqual(type(counts), type({}))
+        self.assertEqual(type(counts), type(OrderedDict()))
         self.assertEqual(counts['facet_queries'], {})
-        self.assertEqual(counts['facet_fields'], {})
+        self.assertEqual(counts['facet_fields'], OrderedDict())
         timestamps = counts['facet_dates']['timestamp']
         self.assertEqual(timestamps['2007-08-11T00:00:00.000Z'], 1)
         self.assertEqual(timestamps['2007-08-12T00:00:00.000Z'], 5)

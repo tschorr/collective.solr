@@ -39,6 +39,7 @@ setup(name = 'collective.solr',
           'plone.browserlayer',
           'collective.js.showmore',
           'plone.indexer',
+          'ordereddict',
       ],
       entry_points = '',
 )
