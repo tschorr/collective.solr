@@ -19,23 +19,24 @@ from collective.solr.tests.utils import numFound
 from collective.solr.utils import activate
 from transaction import commit
 from zope.component import getUtilitiesFor
-from zope.component import queryUtility
+from zope.component import getUtility
 
 
 class BatchedTests(SolrTestCase):
 
     def afterSetUp(self):
         activate()
-        manager = queryUtility(ISolrConnectionManager)
+        manager = getUtility(ISolrConnectionManager)
         self.connection = connection = manager.getConnection()
-        connection.deleteByQuery('[* TO *]')
+        # make sure nothing is indexed
+        connection.deleteByQuery('+UID:[* TO *]')
         connection.commit()
-        result = connection.search(q='[* TO *]').read()
+        result = connection.search(q='+UID:[* TO *]').read()
         self.assertEqual(numFound(result), 0)
         # ignore any generated logging output
         self.portal.REQUEST.RESPONSE.write = lambda x: x
 
-        config = queryUtility(ISolrConnectionConfig)
+        config = getUtility(ISolrConnectionConfig)
         self.batch_size = config.batch_size = 5
 
     def beforeTearDown(self):
