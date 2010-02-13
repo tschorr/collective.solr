@@ -1,8 +1,37 @@
 Changelog
 =========
 
-1.0b21 - Unreleased
+1.0b22 - Unreleased
 -------------------
+
+* Refactor buildout to allow running tests against Plone 4.x.
+  [witsch]
+
+* Optimize reindex behavior when populating the Solr index for the first time.
+  [hannosch, witsch]
+
+* Only register indexable attributes the old way on Plone 3.x.
+  [jcbrand]
+
+* Fix timeout decorator to work ttw.
+  [hannosch, witsch]
+
+* Add "z3c.autoinclude.plugin" entry point, so in Plone 3.3+ you can avoid
+  loading the ZCML file.
+  [hannosch]
+
+
+1.0b21 - Released February 11, 2010
+-----------------------------------
+
+* Fix unindexing to not fetch more data from the objects than necessary.
+  [witsch]
+
+* Use decorator to lock timeouts and make sure the lock is always released.
+  [witsch]
+
+* Fix maintenance views to work without setting up a Solr connection first.
+  [witsch]
 
 
 1.0b20 - Released January 26, 2010
@@ -178,7 +207,7 @@ Changelog
   [witsch]
 
   .. _`plone.indexer`: http://pypi.python.org/pypi/plone.indexer/
-  .. _`PLIP 239`: http://plone.org/products/plone/roadmap/239 
+  .. _`PLIP 239`: http://plone.org/products/plone/roadmap/239
 
 
 1.0b7 - Released April 28, 2009
@@ -214,7 +243,7 @@ Changelog
 * Parse and quote the query to filter invalid query syntax.
   [tesdal]
 
-* In solrSearchResults, if the passed in request is a dict, look up 
+* In solrSearchResults, if the passed in request is a dict, look up
   request to enable adaptation into PloneFlare.
   [tesdal]
 
