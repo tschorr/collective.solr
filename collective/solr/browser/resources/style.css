@@ -33,13 +33,13 @@
   float: left;
   clear: both;
   white-space: nowrap;
+  padding-right: 1em;
 }
 
 #portal-searchfacets dd {
   font-size: 90%;
-  float: left;
   line-height: normal;
-  margin: 0 0 0 1em;
+  margin: 0;
 }
 
 #portal-searchfacets #selected-facets {
