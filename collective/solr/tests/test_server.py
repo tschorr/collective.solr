@@ -36,10 +36,13 @@ class SolrMaintenanceTests(SolrTestCase):
         result = connection.search(q='+UID:[* TO *]').read()
         self.assertEqual(numFound(result), 0)
         # ignore any generated logging output
-        self.portal.REQUEST.RESPONSE.write = lambda x: x
+        self.response = self.portal.REQUEST.RESPONSE
+        self.write = self.response.write
+        self.response.write = lambda x: x
 
     def beforeTearDown(self):
         activate(active=False)
+        self.response.write = self.write
 
     def search(self, query='+UID:[* TO *]'):
         return self.connection.search(q=query).read()
@@ -78,6 +81,23 @@ class SolrMaintenanceTests(SolrTestCase):
         self.assertEqual(counts['physicalPath'], 8)
         self.assertEqual(counts['portal_type'], 8)
         self.assertEqual(counts['review_state'], 8)
+
+    def testReindexParameters(self):
+        maintenance = self.portal.unrestrictedTraverse('solr-maintenance')
+        # the view allos to skip the first n items...
+        maintenance.clear()
+        maintenance.reindex(skip=3)     # the site gets skipped, so add 1
+        self.assertEqual(numFound(self.search()), 6)
+        # and also specify the batch size
+        log = []
+        def write(msg):
+            if 'intermediate' in msg:
+                log.append(msg)
+        self.response.write = write
+        maintenance.clear()
+        maintenance.reindex(batch=3)
+        self.assertEqual(len(log), 3)
+        self.assertEqual(numFound(self.search()), 8)
 
     def testPartialReindex(self):
         maintenance = self.portal.unrestrictedTraverse('news/solr-maintenance')
@@ -266,12 +286,13 @@ class SolrErrorHandlingTests(SolrTestCase):
 
     def afterSetUp(self):
         self.config = getUtility(ISolrConnectionConfig)
-        self.port = self.config.port    # remember previous port setting and...
+        self.port = self.config.port        # remember previous port setting
+        self.folder.unmarkCreationFlag()    # stop LinguaPlone from renaming
 
     def beforeTearDown(self):
         manager = getUtility(ISolrConnectionManager)
         manager.setHost(active=False, port=self.port)
-        commit()                    # undo port changes...
+        commit()                            # undo port changes...
 
     def testNetworkFailure(self):
         log = []
@@ -321,6 +342,7 @@ class SolrServerTests(SolrTestCase):
         self.maintenance.clear()
         self.config = getUtility(ISolrConnectionConfig)
         self.search = getUtility(ISearch)
+        self.folder.unmarkCreationFlag()    # stop LinguaPlone from renaming
 
     def beforeTearDown(self):
         # due to the `commit()` in the tests below the activation of the
@@ -376,6 +398,19 @@ class SolrServerTests(SolrTestCase):
         self.assertEqual(search('+Title:Foo'), 1)
         self.assertEqual(search('+parentPaths:/plone'), 1)
         self.assertEqual(search('+portal_type:Folder'), 1)
+
+    def testReindexObjectWithEmptyDate(self):
+        log = []
+        def logger(*args):
+            log.extend(args)
+        logger_indexer.exception = logger
+        logger_solr.exception = logger
+        self.folder.setModificationDate(None)
+        self.folder.setTitle('Foo')
+        self.folder.reindexObject(idxs=['modified', 'Title'])
+        commit()
+        self.assertEqual(log, [])
+        self.assertEqual(self.search('+Title:Foo').results().numFound, '1')
 
     def testFilterInvalidCharacters(self):
         log = []
@@ -434,7 +469,7 @@ class SolrServerTests(SolrTestCase):
 
     def testSolrSearchResultsInformation(self):
         self.maintenance.reindex()
-        response = solrSearchResults(SearchableText='News')
+        response = solrSearchResults(SearchableText='News', Language='all')
         self.assertEqual(len(response), 2)
         self.assertEqual(response.response.numFound, '2')
         self.failUnless(isinstance(response.responseHeader, dict))
