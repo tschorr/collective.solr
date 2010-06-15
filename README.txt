@@ -17,6 +17,19 @@ facilities.
   .. _`Plone`: http://www.plone.org/
   .. _`GenericSetup`: http://www.zope.org/Products/GenericSetup/
 
+About this branch
+-----------------
+
+This branch was created due to a clients demand for easy keyword distribution for 
+both the Subject and the getEventType Index of around 100 Plone sites.
+Since none indexing addons we looked at could easily give us this support, we 
+decided to extend collective.solr to achieve this.
+
+IMPORTANT: We use the terms extension of Solr 1.4! So a sane Solr 1.4 is needed and
+the result from the templates of (at time of this writing) the working 
+collective.recipe.solrinstance 0.4 need some tweaking in solrconfig.xml to enable this module.
+See the sample configuration of the solr-download for details on how this is done.
+
 
 Current Status
 --------------
