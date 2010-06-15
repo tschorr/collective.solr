@@ -12,7 +12,6 @@ from collective.solr.queryparser import quote
 
 logger = getLogger('collective.solr.search')
 
-
 class Search(object):
     """ a search utility for solr """
     implements(ISearch)

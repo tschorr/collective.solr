@@ -7,7 +7,9 @@ from Products.ZCatalog.ZCatalog import ZCatalog
 
 from collective.solr.interfaces import ISolrConnectionConfig
 from collective.solr.interfaces import ISearchDispatcher
+from collective.solr.interfaces import IKeywordDispatcher
 from collective.solr.interfaces import ISearch
+from collective.solr.interfaces import IKeywords
 from collective.solr.interfaces import IFlare
 from collective.solr.utils import isActive, prepareData
 from collective.solr.utils import padResults
@@ -17,13 +19,13 @@ from collective.solr.mangler import cleanupQueryParameters
 from collective.solr.mangler import optimizeQueryParameters
 from collective.solr.lingua import languageFilter
 
-from collective.solr.monkey import patchCatalogTool, patchLazyCat
+from collective.solr.monkey import patchCatalogTool, patchLazyCat, patchUniqueValuesFor
 patchCatalogTool()      # patch catalog tool to use the dispatcher...
 patchLazyCat()          # ...as well as ZCatalog's Lazy class
+patchUniqueValuesFor()  # ...and ZCatalogs uniqueValuesFor
 
 from collective.solr.attributes import registerAttributes
 registerAttributes()    # register additional indexable attributes
-
 
 class FallBackException(Exception):
     """ exception indicating the dispatcher should fall back to searching
@@ -101,4 +103,34 @@ def solrSearchResults(request=None, **keywords):
             flare[missing] = MV
         results[idx] = wrap(flare)
     padResults(results, **params)           # pad the batch
+    return response
+
+class KeywordDispatcher(object):
+    """ adapter for potentially dispatching a given keyword request to an
+        alternative search backend (instead of the portal catalog) """
+    implements(IKeywordDispatcher)
+
+    def __init__(self, context):
+        self.context = context
+
+    def __call__(self, name):
+        """ decide on a search backend and perform the given request """
+        if isActive():
+            try:
+                return solrUniqueValuesFor(name)
+            except FallBackException:
+                pass
+        if getattr(aq_base(self.context), '_solr_original_uniqueValuesFor', None):
+            return self.context._solr_original_uniqueValuesFor(name)
+        return ZCatalog.uniqueValuesFor(self.context, name)
+
+def solrUniqueValuesFor(name):
+    """ perform a query using solr after generating a uniqueValuesFor
+        semantic for solr """
+    keywords = queryUtility(IKeywords)
+    config = queryUtility(ISolrConnectionConfig)
+    if keywords is None or config is None:
+        raise FallBackException
+    params = {}
+    response = keywords(name, **params)
     return response

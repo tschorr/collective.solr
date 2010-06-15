@@ -24,6 +24,10 @@
     factory=".search.Search"
     provides=".interfaces.ISearch" />
 
+  <utility
+    factory=".keywords.Keywords"
+    provides=".interfaces.IKeywords" />
+
   <five:implements
     class="Products.CMFPlone.CatalogTool.CatalogTool"
     interface=".interfaces.ICatalogTool" />
@@ -36,6 +40,11 @@
         for=".interfaces.ICatalogTool"
         provides=".interfaces.ISearchDispatcher"
         factory=".dispatcher.SearchDispatcher" />
+
+    <adapter
+        for=".interfaces.ICatalogTool"
+        provides=".interfaces.IKeywordDispatcher"
+        factory=".dispatcher.KeywordDispatcher" />
 
     <adapter
         factory=".flare.PloneFlare" />

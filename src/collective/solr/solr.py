@@ -247,6 +247,17 @@ class SolrConnection:
                 self.conn.close()
         return response
 
+    def uniqueValuesFor(self, name, **params):
+        params['terms.fl']=name
+        request = urllib.urlencode(params, doseq=True)
+        try:
+            response = self.doPost('%s/terms' % self.solrBase, request,
+                self.formheaders)
+        finally:
+            if not self.persistent:
+                self.conn.close()
+        return response
+
     def getSchema(self):
         schema_urls = ('%s/admin/file/?file=schema.xml',        # solr 1.3
                        '%s/admin/get-file.jsp?file=schema.xml') # solr 1.2

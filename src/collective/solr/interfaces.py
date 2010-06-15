@@ -125,6 +125,18 @@ class ISearch(Interface):
             passed to the `search` method as the `query` argument """
 
 
+class IKeywords(Interface):
+    """ a generic search interface
+        FIXME: this should be defined in a generic package """
+
+    def search(query, **parameters):
+        """ perform a search with the given querystring and extra parameters
+            (see http://wiki.apache.org/solr/CommonQueryParameters) """
+
+    def __call__(query, **parameters):
+        """ convenience alias for `search` """
+
+
 class ICatalogTool(Interface):
     """ marker interface for plone's catalog tool """
 
@@ -137,6 +149,13 @@ class ISearchDispatcher(Interface):
         """ decide if an alternative search backend is capable of performing
             the given query and use it or fall back to the portal catalog """
 
+class IKeywordDispatcher(Interface):
+    """ adapter for potentially dispatching a given keyword request to an
+        alternative search backend (instead of the portal catalog) """
+
+    def __call__(name):
+        """ decide if an alternative search backend is capable of performing
+            the given request and use it or fall back to the portal catalog """
 
 class ISolrMaintenanceView(Interface):
     """ solr maintenance view for clearing, re-indexing content etc """
