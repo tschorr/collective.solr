@@ -58,6 +58,10 @@ class SolrIndexProcessor(object):
             # however, the reindexing can be skipped if none of the given
             # attributes match existing solr indexes...
             schema = self.manager.getSchema()
+            if schema is None:
+                msg = 'unable to fetch schema, skipping indexing of %r'
+                logger.warning(msg, obj)
+                return
             if attributes is not None:
                 attributes = set(schema.keys()).intersection(attributes)
                 if not attributes:
