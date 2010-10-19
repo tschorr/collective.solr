@@ -30,12 +30,16 @@ class SolrConfigXMLAdapter(XMLAdapterBase):
         self.context.port = 0
         self.context.base = ''
         self.context.async = False
+        self.context.auto_commit = True
         self.context.index_timeout = 0
         self.context.search_timeout = 0
         self.context.max_results = 0
         self.context.required = []
         self.context.facets = []
         self.context.filter_queries = []
+        self.context.slow_query_threshold = 0
+        self.context.effective_steps = 1
+        self.context.exclude_user = False
 
     def _initProperties(self, node):
         elems = node.getElementsByTagName('connection')
@@ -61,6 +65,9 @@ class SolrConfigXMLAdapter(XMLAdapterBase):
                 if child.nodeName == 'async':
                     value = str(child.getAttribute('value'))
                     self.context.async = self._convertToBoolean(value)
+                elif child.nodeName == 'auto-commit':
+                    value = str(child.getAttribute('value'))
+                    self.context.auto_commit = self._convertToBoolean(value)
                 elif child.nodeName == 'index-timeout':
                     value = float(str(child.getAttribute('value')))
                     self.context.index_timeout = value
@@ -85,6 +92,15 @@ class SolrConfigXMLAdapter(XMLAdapterBase):
                     for elem in child.getElementsByTagName('parameter'):
                         value.append(elem.getAttribute('name'))
                     self.context.filter_queries = tuple(map(str, value))
+                elif child.nodeName == 'slow-query-threshold':
+                    value = int(str(child.getAttribute('value')))
+                    self.context.slow_query_threshold = value
+                elif child.nodeName == 'effective-steps':
+                    value = int(str(child.getAttribute('value')))
+                    self.context.effective_steps = value
+                elif child.nodeName == 'exclude-user':
+                    value = str(child.getAttribute('value'))
+                    self.context.exclude_user = self._convertToBoolean(value)
 
     def _createNode(self, name, value):
         node = self._doc.createElement(name)
@@ -105,6 +121,7 @@ class SolrConfigXMLAdapter(XMLAdapterBase):
         node.appendChild(settings)
         append = settings.appendChild
         append(create('async', str(bool(self.context.async))))
+        append(create('auto-commit', str(bool(self.context.auto_commit))))
         append(create('index-timeout', str(self.context.index_timeout)))
         append(create('search-timeout', str(self.context.search_timeout)))
         append(create('max-results', str(self.context.max_results)))
@@ -126,6 +143,10 @@ class SolrConfigXMLAdapter(XMLAdapterBase):
             param = self._doc.createElement('parameter')
             param.setAttribute('name', name)
             filter_queries.appendChild(param)
+        append(create('slow-query-threshold',
+            str(self.context.slow_query_threshold)))
+        append(create('effective-steps', str(self.context.effective_steps)))
+        append(create('exclude-user', str(bool(self.context.exclude_user))))
         return node
 
 

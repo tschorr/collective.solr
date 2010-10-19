@@ -16,12 +16,16 @@ class SetupToolTests(SolrTestCase, TarballTester):
         config.port = 23
         config.base = '/bar'
         config.async = False
+        config.auto_commit = True
         config.index_timeout = 7
         config.search_timeout = 3.1415
         config.max_results = 42
         config.required = ('foo', 'bar')
         config.facets = ('type', 'state')
-        config.filter_queries = ('type',)
+        config.filter_queries = ('type', )
+        config.slow_query_threshold = 2342
+        config.effective_steps = 900
+        config.exclude_user = True
 
     def testImportStep(self):
         profile = 'profile-collective.solr:default'
@@ -36,12 +40,16 @@ class SetupToolTests(SolrTestCase, TarballTester):
         self.assertEqual(config.port, 8983)
         self.assertEqual(config.base, '/solr')
         self.assertEqual(config.async, False)
+        self.assertEqual(config.auto_commit, True)
         self.assertEqual(config.index_timeout, 0)
         self.assertEqual(config.search_timeout, 0)
         self.assertEqual(config.max_results, 0)
         self.assertEqual(config.required, ('SearchableText', ))
         self.assertEqual(config.facets, ('portal_type', 'review_state'))
-        self.assertEqual(config.filter_queries, ('portal_type',))
+        self.assertEqual(config.filter_queries, ('portal_type', ))
+        self.assertEqual(config.slow_query_threshold, 0)
+        self.assertEqual(config.effective_steps, 1)
+        self.assertEqual(config.exclude_user, False)
 
     def testExportStep(self):
         tool = self.portal.portal_setup
@@ -85,6 +93,7 @@ SOLR_XML = """\
   </connection>
   <settings>
     <async value="False" />
+    <auto-commit value="True" />
     <index-timeout value="7" />
     <search-timeout value="3.1415" />
     <max-results value="42" />
@@ -99,6 +108,9 @@ SOLR_XML = """\
     <filter-query-parameters>
       <parameter name="type" />
     </filter-query-parameters>
+    <slow-query-threshold value="2342" />
+    <effective-steps value="900" />
+    <exclude-user value="True" />
   </settings>
 </object>
 """

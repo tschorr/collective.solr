@@ -1,5 +1,5 @@
 from unittest import TestCase, defaultTestLoader, main
-from zope.component import provideUtility
+from zope.component import provideUtility, getGlobalSiteManager
 from DateTime import DateTime
 
 from collective.solr.interfaces import ISolrConnectionConfig
@@ -26,6 +26,14 @@ class Query:
 
 
 class QueryManglerTests(TestCase):
+
+    def setUp(self):
+        self.config = SolrConnectionConfig()
+        provideUtility(self.config, ISolrConnectionConfig)
+
+    def tearDown(self):
+        gsm = getGlobalSiteManager()
+        gsm.unregisterUtility(self.config, ISolrConnectionConfig)
 
     def testPassUnknownArguments(self):
         keywords = mangle(foo=23, bar=42)
@@ -107,6 +115,28 @@ class QueryManglerTests(TestCase):
             'effective': '[* TO 1972-05-11T00:00:00.000Z]',
             'expires': '[1972-05-11T00:00:00.000Z TO *]',
         })
+
+    def testEffectiveRangeSteps(self):
+        date = DateTime('1972/05/11 03:47:02 UTC')
+        # first test with the default step of 1 seconds, i.e. unaltered
+        keywords = mangle(effectiveRange=date, show_inactive=False)
+        self.assertEqual(keywords, {
+            'effective': '[* TO 1972-05-11T03:47:02.000Z]',
+            'expires': '[1972-05-11T03:47:02.000Z TO *]',
+        })
+        # and finally with a setting for steps
+        self.config.effective_steps = 300
+        keywords = mangle(effectiveRange=date, show_inactive=False)
+        self.assertEqual(keywords, {
+            'effective': '[* TO 1972-05-11T03:45:00.000Z]',
+            'expires': '[1972-05-11T03:45:00.000Z TO *]',
+        })
+
+    def testIgnoredParameters(self):
+        keywords = mangle(use_solr=True, foo='bar')
+        self.assertEqual(keywords, {'foo': 'bar'})
+        keywords = mangle(**{'-C': True, 'foo': 'bar'})
+        self.assertEqual(keywords, {'foo': 'bar'})
 
 
 class PathManglerTests(TestCase):
@@ -210,13 +240,13 @@ class QueryParameterTests(TestCase):
 
     def testBatchParameters(self):
         extract = extractQueryParameters
-        params = extract({'start': 5})
+        params = extract({'b_start': 5})
         self.assertEqual(params, dict(start=5))
-        params = extract({'start': '10'})
+        params = extract({'b_start': '10'})
         self.assertEqual(params, dict(start=10))
-        params = extract({'rows': 5})
+        params = extract({'b_size': 5})
         self.assertEqual(params, dict(rows=5))
-        params = extract({'rows': '10'})
+        params = extract({'b_size': '10'})
         self.assertEqual(params, dict(rows=10))
 
     def testCombined(self):
@@ -312,6 +342,21 @@ class QueryParameterTests(TestCase):
             (dict(b='b:42'), dict(fq=['x:13', 'a:23', 'c:(23 42)'])))
         self.assertEqual(optimize(fq=['x:13', 'y:17']),
             (dict(b='b:42'), dict(fq=['x:13', 'y:17', 'a:23', 'c:(23 42)'])))
+        # also test substitution of combined filter queries
+        config.filter_queries = ['a c']
+        self.assertEqual(optimize(),
+            (dict(b='b:42'), dict(fq=['a:23 c:(23 42)'])))
+        config.filter_queries = ['a c', 'b']
+        self.assertEqual(optimize(),
+            ({'*': '*:*'}, dict(fq=['a:23 c:(23 42)', 'b:42'])))
+        # for multiple matches the first takes precedence
+        config.filter_queries = ['a', 'a c', 'b']
+        self.assertEqual(optimize(),
+            (dict(c='c:(23 42)'), dict(fq=['a:23', 'b:42'])))
+        # parameters not contained in the query must not be converted
+        config.filter_queries = ['a nonexisting', 'b']
+        self.assertEqual(optimize(),
+            (dict(a='a:23', c='c:(23 42)'), dict(fq=['b:42'])))
 
     def testFilterFacetDependencies(self):
         extract = extractQueryParameters

@@ -1,5 +1,5 @@
 from zope.interface import Interface
-from zope.schema import Bool, TextLine, Int, Float, List, Choice
+from zope.schema import Bool, TextLine, Int, Float, List
 from zope.i18nmessageid import MessageFactory
 from collective.indexing.interfaces import IIndexQueueProcessor
 
@@ -25,6 +25,12 @@ class ISolrSchema(Interface):
         description=_(u'Check to enable asynchronous indexing operations, '
                        'which will improve Zope response times in return for '
                        'not having the Solr index updated immediately.'))
+
+    auto_commit = Bool(title=_(u'Automatic commit'), default=True,
+        description=_(u'If enabled each index operation will cause a commit '
+                       'to be sent to Solr, which causes it to update its '
+                       'index. If you disable this, you need to configure '
+                       'commit policies on the Solr server side.'))
 
     index_timeout = Float(title=_(u'Index timeout'),
         description=_(u'Number of seconds after which an index request will '
@@ -53,12 +59,28 @@ class ISolrSchema(Interface):
 
     filter_queries = List(title=_(u'Filter query parameters'),
         description = _(u'Specify query parameters for which filter queries '
-                         'should be used, one per line.  Please note that '
-                         'the below list of indexes might not be complete '
-                         'if the Solr server is not running or the '
-                         'connection hasn\'t been activated yet.'),
-        value_type = Choice(vocabulary='collective.solr.indexes'),
-        default = [], required = False)
+                         'should be used, one per line.  You can use several '
+                         'indices in one filter query separated by space. '
+                         'Typical examples are '
+                         '"effective expires allowedRolesAndUsers" or '
+                         '"review_state portal_type".'),
+        value_type = TextLine(), default = [], required = False)
+
+    slow_query_threshold = Int(title=_(u'Slow query threshold'),
+        description=_(u'Specify a threshold (in milliseconds) after which '
+                       'queries are considered to be slow causing them to '
+                       'be logged. Set to "0" to prevent any logging.'))
+
+    effective_steps = Int(title=_(u'Effective date steps'), default=1,
+        description=_(u'Specify the effective date steps in seconds. '
+                       'Using 900 seconds (15 minutes) means the effective '
+                       'date sent to Solr changes every 15 minutes.'))
+
+    exclude_user = Bool(title=_(u'Exclude user from allowedRolesAndUsers'),
+        description=_(u'Specify whether the user:userid should be excluded '
+                       'from allowedRolesAndUsers to improve cacheability '
+                       'on the expense of finding content with local roles'
+                       'given to specific users.'), default=False)
 
 
 class ISolrConnectionConfig(ISolrSchema):

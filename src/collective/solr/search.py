@@ -1,4 +1,5 @@
 from logging import getLogger
+from time import time
 from zope.interface import implements
 from zope.component import queryUtility
 from Missing import MV
@@ -26,14 +27,17 @@ class Search(object):
 
     def search(self, query, **parameters):
         """ perform a search with the given querystring and parameters """
+        start = time()
+        config = queryUtility(ISolrConnectionConfig)
         manager = self.getManager()
         manager.setSearchTimeout()
         connection = manager.getConnection()
         if connection is None:
             raise SolrInactiveException
         if not 'rows' in parameters:
-            config = queryUtility(ISolrConnectionConfig)
             parameters['rows'] = config.max_results or ''
+            logger.info('falling back to "max_results" (%d) without a "rows" '
+                'parameter: %r (%r)', config.max_results, query, parameters)
         if isinstance(query, dict):
             query = ' '.join(query.values())
         logger.debug('searching for %r (%r)', query, parameters)
@@ -47,6 +51,11 @@ class Search(object):
         results = SolrResponse(response)
         response.close()
         manager.setTimeout(None)
+        elapsed = (time() - start) * 1000
+        slow = config.slow_query_threshold
+        if slow and elapsed >= slow:
+            logger.info('slow query: %d/%d ms for %r (%r)',
+                results.responseHeader['QTime'], elapsed, query, parameters)
         return results
 
     __call__ = search
@@ -61,8 +70,8 @@ class Search(object):
         for name, value in args.items():
             field = schema.get(name or defaultSearchField, None)
             if field is None or not field.indexed:
-                logger.warning('dropping unknown search attribute "%s" (%r)',
-                        name, value)
+                logger.warning('dropping unknown search attribute "%s" '
+                    ' (%r) for query: %r', name, value, args)
                 continue
             if isinstance(value, bool):
                 value = str(value).lower()

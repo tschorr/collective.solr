@@ -4,7 +4,6 @@ from zope.interface import implements
 from Products.CMFDefault.formlib.schema import SchemaAdapterBase
 from Products.CMFPlone.interfaces import IPloneSiteRoot
 from plone.app.controlpanel.form import ControlPanelForm
-from plone.app.controlpanel.widgets import MultiCheckBoxVocabularyWidget
 
 from collective.solr.interfaces import ISolrSchema, _
 from collective.solr.interfaces import ISolrConnectionConfig
@@ -78,6 +77,17 @@ class SolrControlPanelAdapter(SchemaAdapterBase):
 
     async = property(getAsync, setAsync)
 
+    def getAutoCommit(self):
+        util = queryUtility(ISolrConnectionConfig)
+        return getattr(util, 'auto_commit', '')
+
+    def setAutoCommit(self, value):
+        util = queryUtility(ISolrConnectionConfig)
+        if util is not None:
+            util.auto_commit = value
+
+    auto_commit = property(getAutoCommit, setAutoCommit)
+
     def getIndexTimeout(self):
         util = queryUtility(ISolrConnectionConfig)
         return getattr(util, 'index_timeout', '')
@@ -144,11 +154,43 @@ class SolrControlPanelAdapter(SchemaAdapterBase):
 
     filter_queries = property(getFilterQueryParameters, setFilterQueryParameters)
 
+    def getSlowQueryThreshold(self):
+        util = queryUtility(ISolrConnectionConfig)
+        return getattr(util, 'slow_query_threshold', '')
+
+    def setSlowQueryThreshold(self, value):
+        util = queryUtility(ISolrConnectionConfig)
+        if util is not None:
+            util.slow_query_threshold = value
+
+    slow_query_threshold = property(getSlowQueryThreshold, setSlowQueryThreshold)
+
+    def getEffectiveSteps(self):
+        util = queryUtility(ISolrConnectionConfig)
+        return getattr(util, 'effective_steps', '')
+
+    def setEffectiveSteps(self, value):
+        util = queryUtility(ISolrConnectionConfig)
+        if util is not None:
+            util.effective_steps = value
+
+    effective_steps = property(getEffectiveSteps, setEffectiveSteps)
+
+    def getExcludeUser(self):
+        util = queryUtility(ISolrConnectionConfig)
+        return getattr(util, 'exclude_user', '')
+
+    def setExcludeUser(self, value):
+        util = queryUtility(ISolrConnectionConfig)
+        if util is not None:
+            util.exclude_user = value
+
+    exclude_user = property(getExcludeUser, setExcludeUser)
+
 
 class SolrControlPanel(ControlPanelForm):
 
     form_fields = FormFields(ISolrSchema)
-    form_fields['filter_queries'].custom_widget = MultiCheckBoxVocabularyWidget
 
     label = _('Solr settings')
     description = _('Settings to enable and configure Solr integration.')

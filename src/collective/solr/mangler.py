@@ -1,4 +1,5 @@
 from zope.component import queryUtility
+from AccessControl import getSecurityManager
 from DateTime import DateTime
 
 from collective.solr.interfaces import ISolrConnectionConfig
@@ -19,6 +20,8 @@ query_args = ('range',
               'operator',
               'depth',
 )
+
+ignored = 'use_solr', '-C'
 
 
 def convert(value):
@@ -45,7 +48,7 @@ def mangleQuery(keywords):
             keywords[key] = value['query']
             del value['query']
             extras[key] = value
-        elif hasattr(value, 'query'):     # unify object parameters
+        elif hasattr(value, 'query'):       # unify object parameters
             keywords[key] = value.query
             extra = dict()
             for arg in query_args:
@@ -53,7 +56,9 @@ def mangleQuery(keywords):
                 if arg_val is not None:
                     extra[arg] = arg_val
             extras[key] = extra
-
+        elif key in ignored:
+            del keywords[key]
+    config = queryUtility(ISolrConnectionConfig)
     for key, value in keywords.items():
         args = extras.get(key, {})
         if key == 'path':
@@ -71,6 +76,10 @@ def mangleQuery(keywords):
                         params.add(tmpl % (base, base + depth, p))
                 del args['depth']
         elif key == 'effectiveRange':
+            if isinstance(value, DateTime):
+                steps = config.effective_steps
+                if steps > 1:
+                    value = DateTime(value.timeTime() // steps * steps)
             value = convert(value)
             del keywords[key]
             keywords['effective'] = '[* TO %s]' % value
@@ -89,6 +98,10 @@ def mangleQuery(keywords):
                 value = sep.join(map(str, map(convert, value)))
                 keywords[key] = '(%s)' % value
             del args['operator']
+        elif key == 'allowedRolesAndUsers' and config.exclude_user:
+            token = 'user:' + getSecurityManager().getUser().getId()
+            if token in value:
+                value.remove(token)
         elif isinstance(value, basestring) and value.endswith('*'):
             keywords[key] = '%s' % value.lower()
         else:
@@ -131,7 +144,10 @@ def extractQueryParameters(args):
                 value = name(value)
             params[key.replace('_', '.', 1)] = value
             del args[key]
-        elif key in ('start', 'rows'):
+        elif key=='rows':
+            params[key] = int(value)
+            del args[key]
+        elif key=='start':
             #since there are field for start and end in events, it is not sure that those are ints
             #for limiting. so if it fails to convert them to int, they are probably more likely indexes
             try:
@@ -140,6 +156,12 @@ def extractQueryParameters(args):
             except ValueError:
                 del args[key]
                 args['Date'] = params['Date'] = DateTime(value).strftime('[%Y-%m-%dT00:00:00Z TO %Y-%m-%dT23:59:59Z]')
+        elif key == 'b_start':
+            params['start'] = int(value)
+            del args[key]
+        elif key == 'b_size':
+            params['rows'] = int(value)
+            del args[key]
     return params
 
 
@@ -167,10 +189,10 @@ def optimizeQueryParameters(query, params):
     config = queryUtility(ISolrConnectionConfig)
     fq = []
     if config is not None:
-        for idx in config.filter_queries:
-            if idx in query:
-                fq.append(query[idx])
-                del query[idx]
+        for idxs in config.filter_queries:
+            idxs = set(idxs.split(' '))
+            if idxs.issubset(query.keys()):
+                fq.append(' '.join([query.pop(idx) for idx in idxs]))
     if 'fq' in params:
         if isinstance(params['fq'], list):
             params['fq'].extend(fq)

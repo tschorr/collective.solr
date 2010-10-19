@@ -4,6 +4,7 @@ from unittest import TestSuite, defaultTestLoader
 from zope.component import getUtility
 from zope.schema.interfaces import IVocabularyFactory
 from transaction import commit, abort
+from zExceptions import Unauthorized
 from DateTime import DateTime
 from Missing import MV
 from time import sleep
@@ -384,6 +385,7 @@ class SolrServerTests(SolrTestCase):
         abort()
         self.config.active = False
         self.config.async = False
+        self.config.auto_commit = True
         commit()
 
     def testGetData(self):
@@ -506,6 +508,10 @@ class SolrServerTests(SolrTestCase):
         self.assertRaises(FallBackException, solrSearchResults,
             dict(foo='bar'))
 
+    def testSolrSearchResultsFallbackOnEmptyParameter(self):
+        self.assertRaises(FallBackException, solrSearchResults,
+            dict(SearchableText=''))
+
     def testSolrSearchResults(self):
         self.maintenance.reindex()
         results = solrSearchResults(SearchableText='News')
@@ -554,6 +560,20 @@ class SolrServerTests(SolrTestCase):
         config.required = ['foo', 'bar']
         self.assertRaises(FallBackException, solrSearchResults,
             dict(Title='News'))
+        # except if you force it via `use_solr`...
+        config.required = ['foo', 'bar']
+        results = solrSearchResults(Title='News', use_solr=True)
+        self.assertEqual(sorted([(r.Title, r.physicalPath) for r in results]),
+            [('News', '/plone/news'), ('News', '/plone/news/aggregator')])
+        # which also works if nothing is required...
+        config.required = []
+        results = solrSearchResults(Title='News', use_solr=True)
+        self.assertEqual(sorted([(r.Title, r.physicalPath) for r in results]),
+            [('News', '/plone/news'), ('News', '/plone/news/aggregator')])
+        # it does respect a `False` though...
+        config.required = ['foo', 'bar']
+        self.assertRaises(FallBackException, solrSearchResults,
+            dict(Title='News', use_solr=False))
 
     def testPathSearches(self):
         self.maintenance.reindex()
@@ -676,6 +696,37 @@ class SolrServerTests(SolrTestCase):
         self.failUnless('/plone/news' in paths)
         self.failUnless('/plone/events' in paths)
 
+    def testEffectiveRangeWithSteps(self):
+        # set some content to become effective/expire around this time...
+        now = DateTime('2010/09/09 15:21:08 UTC')
+        self.setRoles(['Manager'])
+        self.portal.news.setEffectiveDate('2010/09/09 15:20:13 UTC')
+        self.portal.events.setExpirationDate('2010/09/09 15:18:09 UTC')
+        self.maintenance.reindex()
+        # first test with the default step of 1 seconds, i.e. unaltered
+        # we prevent having `effectiveRange` set, but pass an explicit value
+        # the news item is already effective, the event expired...
+        request = dict(use_solr=True, show_inactive=True, effectiveRange=now)
+        results = self.portal.portal_catalog(request)
+        self.assertEqual(len(results), 7)
+        paths = [r.physicalPath for r in results]
+        self.failUnless('/plone/news' in paths)
+        self.failIf('/plone/events' in paths)
+        # with a granularity of 5 minutes the news item isn't effective yet
+        self.config.effective_steps = 300
+        results = self.portal.portal_catalog(request)
+        self.assertEqual(len(results), 6)
+        paths = [r.physicalPath for r in results]
+        self.failIf('/plone/news' in paths)
+        self.failIf('/plone/events' in paths)
+        # with 15 minutes the event hasn't expired yet, though
+        self.config.effective_steps = 900
+        results = self.portal.portal_catalog(request)
+        self.assertEqual(len(results), 7)
+        paths = [r.physicalPath for r in results]
+        self.failIf('/plone/news' in paths)
+        self.failUnless('/plone/events' in paths)
+
     def testAsyncIndexing(self):
         connection = getUtility(ISolrConnectionManager).getConnection()
         self.config.async = True        # enable async indexing
@@ -691,6 +742,16 @@ class SolrServerTests(SolrTestCase):
         sleep(2)
         result = connection.search(q='+Title:Foo').read()
         self.assertEqual(numFound(result), 1)
+
+    def testNoAutoCommitIndexing(self):
+        connection = getUtility(ISolrConnectionManager).getConnection()
+        self.config.auto_commit = False        # disable committing
+        self.folder.processForm(values={'title': 'Foo'})
+        commit()
+        # no indexing happens, make sure we give the server some time
+        sleep(2)
+        result = connection.search(q='+Title:Foo').read()
+        self.assertEqual(numFound(result), 0)
 
     def testLimitSearchResults(self):
         self.maintenance.reindex()
@@ -944,11 +1005,35 @@ class SolrServerTests(SolrTestCase):
             ['Events', 'News', 'Past Events', 'Welcome to Plone'])
         # when a batch size is given, the length should remain the same,
         # but only items in the batch actually exist...
-        self.assertEqual(search(rows=2),
+        self.assertEqual(search(b_size=2),
             ['Events', 'News', None, None])
         # given a start value, the batch is moved within the search results
-        self.assertEqual(search(rows=2, start=1),
+        self.assertEqual(search(b_size=2, b_start=1),
             [None, 'News', 'Past Events', None])
+
+    def testGetObjectOnPrivateObject(self):
+        self.maintenance.reindex()
+        self.loginAsPortalOwner()
+        self.portal.invokeFactory('Document', id='doc', title='Foo')
+        commit()                        # indexing happens on commit
+        self.login()
+        results = solrSearchResults(SearchableText='Foo')
+        self.assertEqual(len(results), 1)
+        self.assertRaises(Unauthorized, results[0].getObject)
+
+    def testExcludeUserFromAllowedRolesAndUsers(self):
+        self.maintenance.reindex()
+        # first test the default of not removing the user
+        results = self.portal.portal_catalog(use_solr=True)
+        self.assertEqual(len(results), 8)
+        paths = [r.physicalPath for r in results]
+        self.failUnless('/plone/Members/test_user_1_' in paths)
+        # now we have it removed...
+        self.config.exclude_user = True
+        results = self.portal.portal_catalog(use_solr=True)
+        self.assertEqual(len(results), 7)
+        paths = [r.physicalPath for r in results]
+        self.failIf('/plone/Members/test_user_1_' in paths)
 
 
 def test_suite():

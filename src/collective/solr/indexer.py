@@ -1,5 +1,6 @@
 from logging import getLogger
 from DateTime import DateTime
+from datetime import date, datetime
 from zope.component import getUtility, queryUtility, queryMultiAdapter
 from zope.interface import implements
 from Products.CMFCore.utils import getToolByName
@@ -36,6 +37,12 @@ def datehandler(value):
         v = value.toZone('UTC')
         value = '%04d-%02d-%02dT%02d:%02d:%06.3fZ' % (v.year(),
             v.month(), v.day(), v.hour(), v.minute(), v.second())
+    elif isinstance(value, date):
+        # Convert a timezone aware timetuple to a non timezone aware time
+        # tuple representing utc time. Does nothing if object is not
+        # timezone aware
+        value = datetime(*value.utctimetuple()[:7])
+        value = '%s.%03dZ' % (value.strftime('%Y-%m-%dT%H:%M:%S'), value.microsecond % 1000)
     return value
 
 
@@ -122,10 +129,13 @@ class SolrIndexProcessor(object):
         pass
 
     def commit(self, wait=None):
+        config = getUtility(ISolrConnectionConfig)
+        if not config.auto_commit:
+            return
         conn = self.getConnection()
         if conn is not None:
             if not isinstance(wait, bool):
-                wait = not getUtility(ISolrConnectionConfig).async
+                wait = not config.async
             try:
                 logger.debug('committing')
                 conn.commit(waitFlush=wait, waitSearcher=wait)
