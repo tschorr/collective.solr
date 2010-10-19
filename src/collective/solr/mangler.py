@@ -132,8 +132,14 @@ def extractQueryParameters(args):
             params[key.replace('_', '.', 1)] = value
             del args[key]
         elif key in ('start', 'rows'):
-            params[key] = int(value)
-            del args[key]
+            #since there are field for start and end in events, it is not sure that those are ints
+            #for limiting. so if it fails to convert them to int, they are probably more likely indexes
+            try:
+                params[key] = int(value)
+                del args[key]
+            except ValueError:
+                del args[key]
+                args['Date'] = params['Date'] = DateTime(value).strftime('[%Y-%m-%dT00:00:00Z TO %Y-%m-%dT23:59:59Z]')
     return params
 
 

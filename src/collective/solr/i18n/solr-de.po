@@ -1,0 +1,38 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: collective.solr\n"
+"POT-Creation-Date: 2010-07-16 15:50+0200\n"
+"PO-Revision-Date: 2010-07-16 15:50+0200\n"
+"Last-Translator: Sven Deichmann <deichmann@werkbank.com>\n"
+"Language-Team: UGent Portaalteam <portaal@ugent.be>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0\n"
+"Language-Code: de\n"
+"Language-Name: German\n"
+"Preferred-Encodings: utf-8 latin1\n"
+"Domain: collective.solr\n"
+
+# english default values for facet titles
+
+msgid "heading_search_facets"
+msgstr "Ergebnisse filtern..."
+
+msgid "portal_type"
+msgstr "Inhaltstyp"
+
+msgid "review_state"
+msgstr "Revisionsstatus"
+
+msgid "Large Plone Folder"
+msgstr "Großer Ordner"
+
+msgid "getEventType"
+msgstr "Veranstaltungsart"
+
+msgid "getEventZielgruppen"
+msgstr "Zielpublikum"
+
+msgid "getEventMedicalField"
+msgstr "Medizinischer Bereich"

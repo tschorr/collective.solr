@@ -1,24 +1,36 @@
 <?xml version="1.0"?>
 <object name="solr">
-  <connection>
-    <host value="127.0.0.1" />
-    <port value="8983" />
-    <base value="/solr" />
-  </connection>
-  <settings>
-    <async value="False" />
-    <index-timeout value="0" />
-    <search-timeout value="0" />
-    <max-results value="0" />
-    <required-query-parameters>
-      <parameter name="SearchableText" />
-    </required-query-parameters>
-    <search-facets>
-      <parameter name="portal_type" />
-      <parameter name="review_state" />
-    </search-facets>
-    <filter-query-parameters>
-      <parameter name="portal_type" />
-    </filter-query-parameters>
-  </settings>
+ <connection>
+  <active value="True"/>
+  <host value="127.0.0.1"/>
+  <port value="8983"/>
+  <base value="/solr"/>
+ </connection>
+ <settings>
+  <async value="True"/>
+  <index-timeout value="0.0"/>
+  <search-timeout value="0.0"/>
+  <max-results value="0"/>
+  <required-query-parameters>
+   <parameter name="Subject"/>
+   <parameter name="getEventType"/>
+   <parameter name="facet"/>
+  </required-query-parameters>
+  <search-facets>
+   <parameter name="portal_type"/>
+   <parameter name="review_state"/>
+   <parameter name="getEventType"/>
+   <parameter name="Subject"/>
+   <parameter name="getEventMedicalField"/>
+   <parameter name="getEventZielgruppen"/>
+  </search-facets>
+  <filter-query-parameters>
+   <parameter name="Subject"/>
+   <parameter name="getEventMedicalField"/>
+   <parameter name="getEventType"/>
+   <parameter name="getEventZielgruppen"/>
+   <parameter name="parentPaths"/>
+   <parameter name="portal_type"/>
+  </filter-query-parameters>
+ </settings>
 </object>

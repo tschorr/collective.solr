@@ -48,8 +48,9 @@ def convertFacets(fields, context=None, request={}, filter=None):
     selected = set([facet.split(':', 1)[0] for facet in fq ])
     for field, values in fields.items():
         counts = []
+        first = lambda a, b: cmp(a[0], b[0])
         second = lambda a, b: cmp(b[1], a[1])
-        for name, count in sorted(values.items(), cmp=second):
+        for name, count in sorted(values.items(), cmp=first):
             p = deepcopy(params)
             p.setdefault('fq', []).append('%s:"%s"' % (field, name.encode('utf-8')))
             if field in p.get('facet.field', []):
@@ -71,7 +72,6 @@ def convertFacets(fields, context=None, request={}, filter=None):
     else:               # otherwise sort by title
         func = lambda a, b: cmp(a['title'], b['title'])
     return sorted(info, cmp=func)
-
 
 class FacetMixin:
     """ mixin with helpers common to the viewlet and view """

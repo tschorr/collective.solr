@@ -1,7 +1,7 @@
 <div id="portal-searchfacets"
      tal:define="facets view/facets; selected view/selected"
      tal:condition="python: facets or selected"
-     i18n:domain="plone">
+     i18n:domain="collective.solr">
 
   <h4 i18n:translate="heading_search_facets">
     Limit search results...
@@ -19,7 +19,7 @@
     </div>
   </div>
 
-  <div tal:repeat="facet facets" i18n:domain="solr">
+  <div tal:repeat="facet facets">
     <h5 tal:content="facet/title" i18n:translate="" />
     <dl>
       <tal:counts repeat="item facet/counts">

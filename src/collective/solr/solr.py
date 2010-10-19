@@ -249,6 +249,7 @@ class SolrConnection:
 
     def uniqueValuesFor(self, name, **params):
         params['terms.fl']=name
+        params['terms.sort'] = 'index'
         request = urllib.urlencode(params, doseq=True)
         try:
             response = self.doPost('%s/terms' % self.solrBase, request,
