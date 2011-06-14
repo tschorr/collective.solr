@@ -227,7 +227,7 @@ class SolrMaintenanceView(BrowserView):
         reindex = []
         unindex = []
         rows = len(uids) * 10               # sys.maxint makes solr choke :(
-        query = '+%s:[* TO *] +parentPaths:%s' % (key, path)
+        query = '+%s:[* TO *] +path_parents:%s' % (key, path)
         for flare in search(query, rows=rows, fl='%s modified' % key):
             uid = getattr(flare, key)
             assert uid, 'empty unique key?'

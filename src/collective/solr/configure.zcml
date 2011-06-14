@@ -65,9 +65,9 @@
 
   </configure>
 
-  <adapter name="physicalPath" factory=".attributes.physicalPathIndexer" />
-  <adapter name="physicalDepth" factory=".attributes.physicalDepthIndexer" />
-  <adapter name="parentPaths" factory=".attributes.parentPathsIndexer" />
+  <adapter name="path_string" factory=".attributes.path_string_indexer" />
+  <adapter name="path_depth" factory=".attributes.path_depth_indexer" />
+  <adapter name="path_parents" factory=".attributes.path_parents_indexer" />
 
   <adapter
       factory=".exportimport.SolrConfigXMLAdapter"
