@@ -85,7 +85,7 @@ def solrSearchResults(request=None, **keywords):
     schema = search.getManager().getSchema() or {}
     params = cleanupQueryParameters(extractQueryParameters(args), schema)
     languageFilter(args)
-    mangleQuery(args)
+    mangleQuery(args, config, schema)
     prepareData(args)
     query = search.buildQuery(**args)
     optimizeQueryParameters(query, params)

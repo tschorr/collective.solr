@@ -35,7 +35,7 @@ def convert(value):
     return value
 
 
-def mangleQuery(keywords):
+def mangleQuery(keywords, config, schema):
     """ translate / mangle query parameters to replace zope specifics
         with equivalent constructs for solr """
     extras = {}
@@ -58,7 +58,6 @@ def mangleQuery(keywords):
             extras[key] = extra
         elif key in ignored:
             del keywords[key]
-    config = queryUtility(ISolrConnectionConfig)
     for key, value in keywords.items():
         args = extras.get(key, {})
         if key == 'path':
@@ -77,7 +76,7 @@ def mangleQuery(keywords):
                 del args['depth']
         elif key == 'effectiveRange':
             if isinstance(value, DateTime):
-                steps = config.effective_steps
+                steps = getattr(config, 'effective_steps', 1)
                 if steps > 1:
                     value = DateTime(value.timeTime() // steps * steps)
             value = convert(value)
@@ -98,10 +97,11 @@ def mangleQuery(keywords):
                 value = sep.join(map(str, map(convert, value)))
                 keywords[key] = '(%s)' % value
             del args['operator']
-        elif key == 'allowedRolesAndUsers' and config.exclude_user:
-            token = 'user:' + getSecurityManager().getUser().getId()
-            if token in value:
-                value.remove(token)
+        elif key == 'allowedRolesAndUsers':
+            if getattr(config, 'exclude_user', False):
+                token = 'user:' + getSecurityManager().getUser().getId()
+                if token in value:
+                    value.remove(token)
         elif isinstance(value, basestring) and value.endswith('*'):
             keywords[key] = '%s' % value.lower()
         else:
