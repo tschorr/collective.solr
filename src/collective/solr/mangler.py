@@ -58,21 +58,34 @@ def mangleQuery(keywords, config, schema):
             extras[key] = extra
         elif key in ignored:
             del keywords[key]
+
+    # find EPI indexes
+    if schema:
+        epi_indexes = {}
+        for name in schema.keys():
+            parts = name.split('_')
+            if parts[-1] in ['string', 'depth', 'parents']:
+                count = epi_indexes.get(parts[0], 0)
+                epi_indexes[parts[0]] = count + 1
+        epi_indexes = [k for k, v in epi_indexes.items() if v == 3]
+    else:
+        epi_indexes = ['path']
+
     for key, value in keywords.items():
         args = extras.get(key, {})
-        if key == 'path':
-            path = keywords['parentPaths'] = value
+        if key in epi_indexes:
+            path = keywords['%s_parents' % key] = value
             del keywords[key]
             if 'depth' in args:
                 depth = int(args['depth'])
                 if depth >= 0:
                     if not isinstance(value, (list, tuple)):
                         path = [path]
-                    tmpl = '(+physicalDepth:[%d TO %d] AND +parentPaths:%s)'
-                    params = keywords['parentPaths'] = set()
+                    tmpl = '(+%s_depth:[%d TO %d] AND +%s_parents:%s)'
+                    params = keywords['%s_parents' % key] = set()
                     for p in path:
                         base = len(p.split('/'))
-                        params.add(tmpl % (base, base + depth, p))
+                        params.add(tmpl % (key, base, base + depth, key, p))
                 del args['depth']
         elif key == 'effectiveRange':
             if isinstance(value, DateTime):
