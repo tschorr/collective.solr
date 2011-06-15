@@ -1,0 +1,8 @@
+.*
+*.pyc
+bin
+develop-eggs
+dist
+fake-eggs
+parts
+var
