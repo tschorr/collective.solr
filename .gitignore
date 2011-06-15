@@ -1,5 +1,7 @@
 .*
+*.mo
 *.pyc
+*.egg-info
 bin
 develop-eggs
 dist
