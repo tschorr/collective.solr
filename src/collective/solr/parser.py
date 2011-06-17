@@ -1,5 +1,6 @@
 from datetime import datetime
 from StringIO import StringIO
+import time
 
 from DateTime import DateTime
 from zope.interface import implements
@@ -41,16 +42,24 @@ def parseDate(value):
     return DateTime(value)
 
 
+# BBB for Python 2.4
+if hasattr(datetime, 'strptime'):
+    strptime = datetime.strptime
+else:
+    def strptime(value, format):
+        return datetime(*(time.strptime(value, format)[0:6]))
+
+
 def parse_date_as_datetime(value):
     if value.find('-') < 4:
         year, rest = value.split('-', 1)
         value = '%04d-%s' % (int(year), rest)
-    format = '%Y-%m-%dT%H:%M:%S'
+    format = '%Y-%m-%dT%H:%M:%SZ'
+    # time.strptime cannot deal with microseconds and we don't always get them
+    # either, so strip away
     if '.' in value:
-        format += '.%fZ'
-    else:
-        format += 'Z'
-    return datetime.strptime(value, format)
+        value = value[0:value.index('.')] + 'Z'
+    return strptime(value, format)
 
 
 # unmarshallers for basic types
