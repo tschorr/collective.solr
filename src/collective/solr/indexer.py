@@ -3,20 +3,26 @@ from Acquisition import aq_get
 from DateTime import DateTime
 from datetime import date, datetime
 from zope.component import getUtility, queryUtility, queryMultiAdapter
+from zope.component import queryAdapter, adapts
 from zope.interface import implements
 from ZODB.POSException import ConflictError
 from Products.CMFCore.utils import getToolByName
 from Products.CMFCore.CMFCatalogAware import CMFCatalogAware
 from Products.Archetypes.CatalogMultiplex import CatalogMultiplex
+from Products.Archetypes.interfaces import IBaseObject
 from plone.app.content.interfaces import IIndexableObjectWrapper
 from plone.indexer.interfaces import IIndexableObject
 
 from collective.solr.interfaces import ISolrConnectionConfig
 from collective.solr.interfaces import ISolrConnectionManager
 from collective.solr.interfaces import ISolrIndexQueueProcessor
+from collective.solr.interfaces import ISolrAddHandler
 from collective.solr.solr import SolrException
 from collective.solr.utils import prepareData
 from socket import error
+from urllib import urlencode
+
+from urllib3 import encode_multipart_formdata
 
 logger = getLogger('collective.solr.indexer')
 
@@ -31,7 +37,7 @@ def indexable(obj):
 def datehandler(value):
     # TODO: we might want to handle datetime and time as well;
     # check the enfold.solr implementation
-    if value is None:
+    if value is None or value is '':
         raise AttributeError
     if isinstance(value, str) and not value.endswith('Z'):
         value = DateTime(value)
@@ -52,6 +58,65 @@ handlers = {
     'solr.DateField': datehandler,
     'solr.TrieDateField': datehandler,
 }
+
+class DefaultAdder(object):
+
+    implements(ISolrAddHandler)
+    adapts(IBaseObject)
+
+    def __init__(self, context):
+        self.context = context
+
+    def __call__(self, conn, boost_values=None, **data):
+        # remove in Plone unused field links,
+        # which gives problems with some documents
+        data.pop('links', '')
+        conn.add(boost_values=boost_values, **data)
+
+
+class BinaryAdder(DefaultAdder):
+
+    def __call__(self, conn, **data):
+        field = self.context.getPrimaryField()
+        if field is None:
+            return
+        binary_data = str(field.get(self.context).data)
+        if not binary_data:
+            return
+        filename = field.getFilename(self.context)
+        if filename is not None:
+            body, content_type = encode_multipart_formdata(
+                {'myfile':(filename , binary_data)})
+        else:
+            body, content_type = encode_multipart_formdata(
+                {'myfile': binary_data})
+
+        headers = {}
+        headers['Content-Type'] = content_type
+        headers['Content-Length'] = len(body)
+
+        params = {'commit':'true'}
+        ignore = ('content_type', 'SearchableText', 'created', 'Type', 'links',
+                  'description', 'Date')
+        # XXX missing boosts handling
+        for key, val in data.iteritems():
+            if key in ignore:
+                continue
+            if isinstance(val, unicode):
+                val = val.encode('utf-8')
+            if isinstance(val, list):
+                for i, item in enumerate(val):
+                    if isinstance(item, unicode):
+                        val[i] = item.encode('utf-8')
+            params['literal.%s' % key] = val
+
+        url = '%s/update/extract?%s' % (
+            conn.solrBase, urlencode(params, doseq=1))
+        conn.reset()
+        try:
+            conn.doPost(url, body, headers)
+        except SolrException:
+            logger.warn('Error @ %s', data['physicalPath'])
 
 
 def boost_values(obj, data):
@@ -100,8 +165,12 @@ class SolrIndexProcessor(object):
                 if config.commit_within:
                     data['commitWithin'] = config.commit_within
                 try:
-                    logger.debug('indexing %r (%r)', obj, data)
-                    conn.add(boost_values=boost_values(obj, data), **data)
+                    boosts = boost_values(obj, data)
+                    pt = data.get('portal_type', 'default')
+                    adder = queryAdapter(obj, ISolrAddHandler, name=pt)
+                    if adder is None:
+                        adder = DefaultAdder(obj)
+                    adder(conn, boost_values=boosts, **data)
                 except (SolrException, error):
                     logger.exception('exception during indexing %r', obj)
 
