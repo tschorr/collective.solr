@@ -1,7 +1,9 @@
-from zope.component import queryUtility
-from Acquisition import aq_base
 from string import maketrans
 from re import compile, UNICODE
+
+from Acquisition import aq_base
+from unidecode import unidecode
+from zope.component import queryUtility
 
 from collective.solr.interfaces import ISolrConnectionConfig
 
@@ -51,7 +53,8 @@ def prepareData(data):
     searchable = data.get('SearchableText', None)
     if searchable is not None:
         if isSimpleTerm(searchable):        # use prefix/wildcard search
-            searchable = '(%s* OR %s)' % (searchable.lower(), searchable)
+            searchable = '(%s* OR %s)' % (
+                prepare_wildcard(searchable), searchable)
         if isinstance(searchable, unicode):
             searchable = searchable.encode('utf-8')
         data['SearchableText'] = searchable.translate(translation_map)
@@ -65,6 +68,17 @@ def isSimpleTerm(term):
         except UnicodeDecodeError:
             pass
     return bool(simpleTerm.match(term.strip()))
+
+
+def prepare_wildcard(value):
+    # wildcards prevent Solr's field analyzer to run. So we need to replicate
+    # all logic that's usually done in the text field.
+    # Unfortunately we cannot easily inspect the field analyzer and tokenizer,
+    # so we assume the default config contains ICUFoldingFilterFactory and hope
+    # unidecode will produce the same results
+    if not isinstance(value, unicode):
+        value = unicode(value, 'utf-8', 'ignore')
+    return str(unidecode(value).lower())
 
 
 def findObjects(origin):

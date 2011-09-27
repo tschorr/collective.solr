@@ -40,6 +40,7 @@ setup(name = 'collective.solr',
         'plone.browserlayer',
         'collective.js.showmore',
         'plone.indexer',
+        'Unidecode',
       ],
       extras_require = { 'test': [
         'collective.testcaselayer',

@@ -4,6 +4,10 @@ Changelog
 1.2 - Unreleased
 ----------------
 
+* Extend the wildcard search term manipulation to do Unicode to ascii folding,
+  to keep up with the default field settings of the text field.
+  [hannosch, mj]
+
 * Rewrote the `maintenance/sync` method for more performance and dropped the
   optional `path` restriction from it.
   [hannosch]

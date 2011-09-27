@@ -4,6 +4,7 @@ from DateTime import DateTime
 
 from collective.solr.interfaces import ISolrConnectionConfig
 from collective.solr.search import quote
+from collective.solr.utils import prepare_wildcard
 
 
 ranges = {
@@ -116,7 +117,7 @@ def mangleQuery(keywords, config, schema):
                 if token in value:
                     value.remove(token)
         elif isinstance(value, basestring) and value.endswith('*'):
-            keywords[key] = '%s' % value.lower()
+            keywords[key] = prepare_wildcard(value)
         else:
             keywords[key] = convert(value)
         assert not args, 'unsupported usage: %r' % args
