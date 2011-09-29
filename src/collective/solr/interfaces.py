@@ -2,6 +2,7 @@ from zope.interface import Interface
 from zope.schema import Bool, TextLine, Int, Float, List
 from zope.i18nmessageid import MessageFactory
 from collective.indexing.interfaces import IIndexQueueProcessor
+from zope.schema.interfaces import IVocabularyFactory
 
 _ = MessageFactory('collective.solr')
 
@@ -179,3 +180,15 @@ class ISolrMaintenanceView(Interface):
             contained in the catalog can be optionally removed;  this can
             be used to ensure consistency between zope and solr after the
             solr server has been unavailable etc """
+
+class IFacetTitleVocabularyFactory(IVocabularyFactory):
+    """A vocabulary factory used to create a vocabulary that provides titles for facet values
+
+    When facet values are displayed for selection on the search results page, a named
+    IFacetTitleVocabularyFactory is looked up, and if it exists it's called to return a
+    zope.schema.IBaseVocabulary vocabulary. The name is the same as the facet name (e.g.
+    "portal_type" or "review_state"). This vocabulary should return
+    zope.schema.ITitledTokenizedTerm items, their title attribute is what is displayed
+    in the UI.
+
+    """

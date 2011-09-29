@@ -2,6 +2,7 @@ from Products.Five import BrowserView
 from Products.Five.browser.pagetemplatefile import ViewPageTemplateFile
 from zope.component import queryUtility
 from plone.app.layout.viewlets.common import SearchBoxViewlet
+from collective.solr.interfaces import IFacetTitleVocabularyFactory
 from collective.solr.interfaces import ISolrConnectionConfig
 from urllib import urlencode
 from copy import deepcopy
@@ -48,6 +49,8 @@ def convertFacets(fields, context=None, request={}, filter=None):
     selected = set([facet.split(':', 1)[0] for facet in fq])
     for field, values in fields.items():
         counts = []
+        vfactory = queryUtility(IFacetTitleVocabularyFactory, name=field)
+        vocabulary = vfactory and vfactory(context) or TranslatingVocabulary()
         second = lambda a, b: cmp(b[1], a[1])
         for name, count in sorted(values.items(), cmp=second):
             p = deepcopy(params)
@@ -55,7 +58,11 @@ def convertFacets(fields, context=None, request={}, filter=None):
             if field in p.get('facet.field', []):
                 p['facet.field'].remove(field)
             if filter is None or filter(name, count):
-                counts.append(dict(name=name, count=count,
+                try:
+                    title = vocabulary.getTerm(name).title
+                except LookupError:
+                    title = name
+                counts.append(dict(name=name, count=count, title=title,
                     query=urlencode(p, doseq=True)))
         deps = dependencies.get(field, None)
         visible = deps is None or selected.intersection(deps)
