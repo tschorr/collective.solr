@@ -4,6 +4,11 @@ Changelog
 1.2 - Unreleased
 ----------------
 
+* Facet titles can now be provided by specialized vocabularies. Register a named
+  IFacetTitleVocabularyFactory utility and it'll be used to get a vocabulary
+  for the facet field with the same name.
+  [mj]
+
 * Extend the wildcard search term manipulation to do Unicode to ascii folding,
   to keep up with the default field settings of the text field.
   [hannosch, mj]

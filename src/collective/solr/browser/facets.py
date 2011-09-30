@@ -1,12 +1,12 @@
 from Products.Five import BrowserView
 from Products.Five.browser.pagetemplatefile import ViewPageTemplateFile
-from zope.component import queryUtility
 from plone.app.layout.viewlets.common import SearchBoxViewlet
 from collective.solr.interfaces import IFacetTitleVocabularyFactory
 from collective.solr.interfaces import ISolrConnectionConfig
 from urllib import urlencode
 from copy import deepcopy
 from string import strip
+from zope.component import getUtility, queryUtility
 
 
 def param(view, name):
@@ -50,7 +50,10 @@ def convertFacets(fields, context=None, request={}, filter=None):
     for field, values in fields.items():
         counts = []
         vfactory = queryUtility(IFacetTitleVocabularyFactory, name=field)
-        vocabulary = vfactory and vfactory(context) or TranslatingVocabulary()
+        if vfactory is None:
+            # Use the default fallback
+            vfactory = getUtility(IFacetTitleVocabularyFactory)
+        vocabulary = vfactory(context)
         second = lambda a, b: cmp(b[1], a[1])
         for name, count in sorted(values.items(), cmp=second):
             p = deepcopy(params)
@@ -58,10 +61,9 @@ def convertFacets(fields, context=None, request={}, filter=None):
             if field in p.get('facet.field', []):
                 p['facet.field'].remove(field)
             if filter is None or filter(name, count):
-                try:
+                title = name
+                if name in vocabulary:
                     title = vocabulary.getTerm(name).title
-                except LookupError:
-                    title = name
                 counts.append(dict(name=name, count=count, title=title,
                     query=urlencode(p, doseq=True)))
         deps = dependencies.get(field, None)

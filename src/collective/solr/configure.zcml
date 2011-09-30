@@ -65,6 +65,8 @@
 
   </configure>
 
+  <utility factory=".vocabularies.I18NFacetTitlesVocabularyFactory" />
+
   <adapter name="path_string" factory=".attributes.path_string_indexer" />
   <adapter name="path_depth" factory=".attributes.path_depth_indexer" />
   <adapter name="path_parents" factory=".attributes.path_parents_indexer" />
