@@ -1,12 +1,15 @@
 from zope.interface import implements
 from zope.component import queryUtility
+from zope.i18nmessageid import MessageFactory
 from zope.schema.interfaces import IBaseVocabulary
 from zope.schema.interfaces import IVocabularyFactory
 from zope.schema.vocabulary import SimpleTerm, SimpleVocabulary
-from collective.solr import SolrMessageFactory
 from collective.solr.interfaces import IFacetTitleVocabularyFactory
 from collective.solr.interfaces import ISolrConnectionConfig
 from collective.solr.interfaces import ISolrConnectionManager
+
+
+SolrMessageFactory = MessageFactory('solr')
 
 
 class SolrIndexes(object):
