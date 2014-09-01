@@ -1,0 +1,43 @@
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en"
+      xmlns:tal="http://xml.zope.org/namespaces/tal"
+      xmlns:metal="http://xml.zope.org/namespaces/metal"
+      xmlns:i18n="http://xml.zope.org/namespaces/i18n"
+      lang="en"
+      metal:use-macro="here/main_template/macros/master"
+      i18n:domain="plone">
+<body>
+<div metal:fill-slot="main"
+         tal:define="use_types_blacklist request/use_types_blacklist | python:True;
+                 use_navigation_root request/use_navigation_root | python:True;
+                 Batch python:modules['Products.CMFPlone'].Batch;
+                 b_size python:30;b_start python:0;b_start request/b_start | b_start;
+                 results python:here.queryCatalog(REQUEST=request,use_types_blacklist=use_types_blacklist, use_navigation_root=use_navigation_root, b_start=b_start, b_size=b_size+1, hl='true');
+                 site_properties context/portal_properties/site_properties;
+                 desc_length site_properties/search_results_description_length;
+                 desc_ellipsis site_properties/ellipsis;
+                 searchterm request/SearchableText|nothing;
+                 use_view_action site_properties/typesUseViewActionInListings|python:();">
+
+  <h2>Search Term</h2>
+  <div tal:content="request/SearchableText|nothing" />
+
+  <h2>Results</h2>
+  <ul tal:repeat="item results">
+    <li>
+      <a href=""
+         tal:attributes="href item/getPath;"
+         tal:content="item/Title"></a>
+    </li>
+  </ul>
+
+  <div tal:define="view nocall: context/@@search-facets | nothing"
+       tal:condition="python: view"
+       tal:replace="structure python: view(results=results)" />
+
+  <div tal:define="view nocall: context/@@search-facets | nothing"
+       tal:condition="python: view"
+       tal:replace="structure view/hiddenfields" />
+
+</div>
+</body>
+</html>

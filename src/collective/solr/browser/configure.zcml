@@ -55,4 +55,12 @@
       class=".suggest.AutocompleteView"
       permission="zope2.View"/>
 
+  <browser:page
+      name="search"
+      for="*"
+      class=".search.SearchView"
+      layer=".interfaces.IThemeSpecific"
+      permission="zope2.Public"
+      />
+
 </configure>
