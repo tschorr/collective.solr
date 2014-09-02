@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from Products.CMFCore.utils import getToolByName
+from Products.Five.browser import BrowserView
 from Products.Five.browser.pagetemplatefile import ViewPageTemplateFile
 from collective.solr.browser.facets import SearchFacetsView
+from collective.solr.dispatcher import solrSearchResults
 
 import json
 
@@ -31,7 +33,7 @@ class JSONSearchResults(SearchFacetsView):
         b_start = self.request.get('b_start', 0)
         b_size = self.request.get('b_size', 10)
         catalog = getToolByName(self.context, 'portal_catalog')
-        return json.dumps([
+        results = [
             {
                 'title': brain.Title,
                 'id': brain.id,
@@ -46,4 +48,15 @@ class JSONSearchResults(SearchFacetsView):
                 b_size=b_size+1,
                 hl='true'
             ) if brain is not None  # otherwise => AttributeError: 'NoneType'
-        ])
+        ]
+        SearchableText = self.request.get('SearchableText')
+        solr_search_results = solrSearchResults(
+            SearchableText=SearchableText,
+            facet='true',
+            facet_field='portal_type'
+        )
+        facets = solr_search_results.facet_counts['facet_fields']['portal_type']
+        return json.dumps({
+            'results': results,
+            'facets': facets,
+        })

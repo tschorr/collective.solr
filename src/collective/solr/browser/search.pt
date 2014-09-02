@@ -45,6 +45,13 @@ myModule.controller('SearchController',
       facet: {
         portal_type: 'Document'
       },
+      facets: {
+        'Folder': 0,
+        'Document': 0,
+        'News Item': 0,
+        'Event': 0,
+        'Collection': 0,
+      },
       batchStart: 0,
     };
 
@@ -57,7 +64,8 @@ myModule.controller('SearchController',
         timeout = $timeout(function() {
           searchService.searchResults(newSearchTerm, newPortalType, batchStart)
           .success(function(data, status) {
-            $scope.search.results = data;
+            $scope.search.results = data.results;
+            $scope.search.facets = data.facets;
           });
         }, 350);
       }
@@ -85,18 +93,13 @@ myModule.controller('SearchController',
   </script>
   <div ng-app="myApp">
     <div ng-controller="SearchController">
-      <input type="text" ng-model="search.term" placeholder="Enter search"/>
+      <input type="text" ng-model="search.term" placeholder="Enter search" />
       <h3>Facets</h3>
       <h5>Content Type</h5>
       <ul>
-        <li>
-          <a ng-click="changeFacet('Folder')">
-            Folder
-          </a>
-        </li>
-        <li>
-          <a ng-click="changeFacet('Document')">
-            Document
+        <li ng-repeat="(key, value) in search.facets">
+          <a ng-click="changeFacet(key)">
+            {{key}}: {{value}}
           </a>
         </li>
       </ul>
