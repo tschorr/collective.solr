@@ -63,4 +63,12 @@
       permission="zope2.Public"
       />
 
+  <browser:page
+      name="json-search-results"
+      for="*"
+      class=".search.JSONSearchResults"
+      layer=".interfaces.IThemeSpecific"
+      permission="zope2.Public"
+      />
+
 </configure>

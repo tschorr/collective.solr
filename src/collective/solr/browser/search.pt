@@ -8,7 +8,71 @@
 <body>
 <div metal:fill-slot="main"
          tal:define="results view/results">
+  <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.0-beta.1/angular.min.js"></script>
+  <script type="text/javascript">
+var myModule = angular.module('myApp', []);
 
+myModule.factory('searchService',
+  function($http) {
+    'use strict';
+    var runUserRequest = function(username, path) {
+      return $http({
+        method: 'GET',
+        url: portal_url + '/json-search-results',
+        params: {
+          'facet': 'true',
+          //'fq': {'portal_type': 'Folder'},
+          'facet.field': 'portal_type',
+          'SearchableText': username
+        }
+      });
+    };
+    return {
+      searchResults: function(username) {
+        return runUserRequest(username, 'searchResults');
+      }
+    };
+  }
+);
+
+myModule.controller('SearchController',
+  function($scope, $timeout, searchService) {
+    'use strict';
+    var timeout;
+
+    $scope.$watch('search', function(newUserName) {
+      if (newUserName) {
+        if (timeout) $timeout.cancel(timeout);
+        timeout = $timeout(function() {
+          searchService.searchResults(newUserName)
+          .success(function(data, status) {
+            $scope.results = data;
+          });
+        }, 350);
+      }
+    });
+  }
+);
+
+  </script>
+  <div ng-app="myApp">
+    <div ng-controller="SearchController">
+      <input type="text" ng-model="search" placeholder="Enter search"/>
+      <p>
+        Search: <span>{{search}}</span>
+      </p>
+      <div>
+        <h3>Results</h3>
+        <ul>
+          <li ng-repeat="item in results">
+            {{ item.title }} ( {{item.portal_type}} )
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+<!--
   <h2>Search Term</h2>
   <div tal:content="request/SearchableText|nothing" />
 
@@ -20,7 +84,7 @@
          tal:content="item/Title"></a>
     </li>
   </ul>
-
+-->
   <div tal:define="view nocall: context/@@search-facets | nothing"
        tal:condition="python: view"
        tal:replace="structure python: view(results=results)" />
