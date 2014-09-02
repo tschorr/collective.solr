@@ -45,16 +45,28 @@ myModule.controller('SearchController',
         portal_type: 'Document'
       },
     };
-    $scope.$watch('search.term', function(newSearchTerm) {
+
+    function updateSearchResults() {
+      var newSearchTerm = $scope.search.term;
+      var newPortalType = $scope.search.facet.portal_type;
       if (newSearchTerm) {
         if (timeout) $timeout.cancel(timeout);
         timeout = $timeout(function() {
-          searchService.searchResults(newSearchTerm, $scope.search.facet.portal_type)
+          searchService.searchResults(newSearchTerm, newPortalType)
           .success(function(data, status) {
             $scope.search.results = data;
           });
         }, 350);
       }
+    };
+
+    $scope.changeFacet = function(portalType) {
+      $scope.search.facet.portal_type = portalType;
+      updateSearchResults();
+    };
+
+    $scope.$watch('search.term', function() {
+      updateSearchResults();
     });
   }
 );
@@ -67,18 +79,14 @@ myModule.controller('SearchController',
       <h5>Content Type</h5>
       <ul>
         <li>
-          <input type="checkbox"
-                 ng-model="search.facet.portal_type"
-                 ng-true-value="Folder"
-                 ng-false-value="" />
-          Folder
+          <a ng-click="changeFacet('Folder')">
+            Folder
+          </a>
         </li>
         <li>
-          <input type="checkbox"
-                 ng-model="search.facet.portal_type"
-                 ng-true-value="Document"
-                 ng-false-value="" />
+          <a ng-click="changeFacet('Document')">
             Document
+          </a>
         </li>
       </ul>
       <h3>Results</h3>
