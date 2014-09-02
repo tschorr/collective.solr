@@ -28,8 +28,8 @@ class SearchView(SearchFacetsView):
 class JSONSearchResults(SearchFacetsView):
 
     def __call__(self):
-        b_start = 0
-        b_size = 10
+        b_start = self.request.get('b_start', 0)
+        b_size = self.request.get('b_size', 10)
         catalog = getToolByName(self.context, 'portal_catalog')
         return json.dumps([
             {

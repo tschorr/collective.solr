@@ -16,7 +16,7 @@ myModule.factory('searchService',
   function($http) {
     'use strict';
 
-    var runUserRequest = function(searchTerm, portalType) {
+    var runUserRequest = function(searchTerm, portalType, batchStart) {
       return $http({
         method: 'GET',
         url: portal_url + '/json-search-results',
@@ -24,13 +24,14 @@ myModule.factory('searchService',
           'facet': 'true',
           'fq': 'portal_type:' + portalType,
           'facet.field': 'portal_type',
+          'b_start': batchStart,
           'SearchableText': searchTerm
         }
       });
     };
     return {
-      searchResults: function(searchTerm, portalType) {
-        return runUserRequest(searchTerm, portalType);
+      searchResults: function(searchTerm, portalType, batchStart) {
+        return runUserRequest(searchTerm, portalType, batchStart);
       }
     };
   }
@@ -44,15 +45,17 @@ myModule.controller('SearchController',
       facet: {
         portal_type: 'Document'
       },
+      batchStart: 0,
     };
 
     function updateSearchResults() {
       var newSearchTerm = $scope.search.term;
       var newPortalType = $scope.search.facet.portal_type;
+      var batchStart = $scope.search.batchStart;
       if (newSearchTerm) {
         if (timeout) $timeout.cancel(timeout);
         timeout = $timeout(function() {
-          searchService.searchResults(newSearchTerm, newPortalType)
+          searchService.searchResults(newSearchTerm, newPortalType, batchStart)
           .success(function(data, status) {
             $scope.search.results = data;
           });
@@ -60,6 +63,14 @@ myModule.controller('SearchController',
       }
     };
 
+    $scope.batchNext = function() {
+      $scope.search.batchStart = $scope.search.batchStart + 10;
+      updateSearchResults();
+    };
+    $scope.batchPrevious = function() {
+      $scope.search.batchStart = $scope.search.batchStart - 10;
+      updateSearchResults();
+    };
     $scope.changeFacet = function(portalType) {
       $scope.search.facet.portal_type = portalType;
       updateSearchResults();
@@ -97,6 +108,8 @@ myModule.controller('SearchController',
           </a>
         </li>
       </ul>
+      <a ng-click="batchPrevious()">Previous</a>
+      <a ng-click="batchNext()">Next</a>
     </div>
   </div>
 
