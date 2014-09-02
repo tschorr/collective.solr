@@ -29,12 +29,12 @@
       class=".errors.ErrorView"
       permission="zope2.Public" />
 
-  <browser:viewlet
+  <!--<browser:viewlet
       name="plone.searchbox"
       manager="plone.app.layout.viewlets.interfaces.IPortalHeader"
       class=".facets.SearchBox"
       layer=".interfaces.IThemeSpecific"
-      permission="zope2.View" />
+      permission="zope2.View" />-->
 
   <browser:page
       for="OFS.interfaces.IFolder"
