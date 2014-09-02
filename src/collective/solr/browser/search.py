@@ -29,7 +29,7 @@ class JSONSearchResults(SearchFacetsView):
 
     def __call__(self):
         b_start = 0
-        b_size = 30
+        b_size = 10
         catalog = getToolByName(self.context, 'portal_catalog')
         return json.dumps([
             {
@@ -45,5 +45,5 @@ class JSONSearchResults(SearchFacetsView):
                 b_start=b_start,
                 b_size=b_size+1,
                 hl='true'
-            )
+            ) if brain is not None  # otherwise => AttributeError: 'NoneType'
         ])
