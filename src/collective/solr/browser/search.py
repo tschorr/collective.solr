@@ -35,7 +35,8 @@ class JSONSearchResults(SearchFacetsView):
             {
                 'title': brain.Title,
                 'id': brain.id,
-                'portal_type': brain.portal_type
+                'portal_type': brain.portal_type,
+                'url': brain.getURL()
             }
             for brain in catalog(
                 REQUEST=self.request,
