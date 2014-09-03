@@ -116,27 +116,6 @@ myModule.controller('SearchController',
     </div>
   </div>
 
-<!--
-  <h2>Search Term</h2>
-  <div tal:content="request/SearchableText|nothing" />
-
-  <h2>Results</h2>
-  <ul tal:repeat="item results">
-    <li>
-      <a href=""
-         tal:attributes="href item/getPath;"
-         tal:content="item/Title"></a>
-    </li>
-  </ul>
--->
-  <div tal:define="view nocall: context/@@search-facets | nothing"
-       tal:condition="python: view"
-       tal:replace="structure python: view(results=results)" />
-
-  <div tal:define="view nocall: context/@@search-facets | nothing"
-       tal:condition="python: view"
-       tal:replace="structure view/hiddenfields" />
-
 </div>
 </body>
 </html>
