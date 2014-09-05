@@ -125,9 +125,9 @@ myModule.controller('SearchController',
       <h3>Results</h3>
       <h4>Pagination</h4>
       TotalItems: {{search.batching.totalItems}}<br />
-      BatchStart: <input ng-model="search.batching.batchStart" /><br />
-      BatchSize: <input ng-model="search.batching.batchSize" /><br />
-      CurrentPage: <input ng-model="search.batching.currentPage" /><br />
+      BatchStart: {{search.batching.batchStart}}<br />
+      BatchSize: {{search.batching.batchSize}}" /><br />
+      CurrentPage: {{search.batching.currentPage}}<br />
       <pagination boundary-links="true" total-items="search.batching.totalItems" ng-model="search.batching.currentPage" class="pagination-sm" previous-text="&lsaquo;" next-text="&rsaquo;" first-text="&laquo;" last-text="&raquo;"></pagination>
       <ul>
         <li ng-repeat="item in search.results">
