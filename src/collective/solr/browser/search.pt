@@ -8,15 +8,17 @@
 <body>
 <div metal:fill-slot="main"
          tal:define="results view/results">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
   <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.3.0-beta.1/angular.min.js"></script>
+  <script src="https://angular-ui.github.io/bootstrap/ui-bootstrap-tpls-0.11.0.js"></script>
   <script type="text/javascript">
-var myModule = angular.module('myApp', []);
+var myModule = angular.module('myApp', ['ui.bootstrap']);
 
 myModule.factory('searchService',
   function($http) {
     'use strict';
 
-    var runUserRequest = function(searchTerm, portalType, batchStart) {
+    var runUserRequest = function(searchTerm, portalType, batchStart, batchSize) {
       return $http({
         method: 'GET',
         url: portal_url + '/json-search-results',
@@ -25,13 +27,14 @@ myModule.factory('searchService',
           'fq': 'portal_type:' + portalType,
           'facet.field': 'portal_type',
           'b_start': batchStart,
+          'b_size': batchSize,
           'SearchableText': searchTerm
         }
       });
     };
     return {
-      searchResults: function(searchTerm, portalType, batchStart) {
-        return runUserRequest(searchTerm, portalType, batchStart);
+      searchResults: function(searchTerm, portalType, batchStart, batchSize) {
+        return runUserRequest(searchTerm, portalType, batchStart, batchSize);
       }
     };
   }
@@ -52,31 +55,47 @@ myModule.controller('SearchController',
         'Event': 0,
         'Collection': 0,
       },
-      batchStart: 0,
+      batching: {
+        batchStart: 1,
+        batchSize: 10,
+        currentPage: 1,
+        totalItems: 0,
+      },
+      results: [],
     };
 
     function updateSearchResults() {
       var newSearchTerm = $scope.search.term;
       var newPortalType = $scope.search.facet.portal_type;
-      var batchStart = $scope.search.batchStart;
+      var batchStart = $scope.search.batching.batchStart;
+      var batchSize = $scope.search.batching.batchSize;
       if (newSearchTerm) {
         if (timeout) $timeout.cancel(timeout);
         timeout = $timeout(function() {
-          searchService.searchResults(newSearchTerm, newPortalType, batchStart)
+          batchStart = $scope.search.batching.batchStart = ((($scope.search.batching.currentPage - 1) * $scope.search.batching.batchSize) + 1);
+          searchService.searchResults(newSearchTerm, newPortalType, batchStart, batchSize)
           .success(function(data, status) {
             $scope.search.results = data.results;
             $scope.search.facets = data.facets;
+            $scope.search.batching.totalItems = data.totalItems;
           });
         }, 350);
       }
     };
 
+    $scope.$watch('search.batching.currentPage', function(newCurrentPage) {
+      if (newCurrentPage) {
+        $scope.search.batching.currentPage = newCurrentPage;
+        updateSearchResults();
+      }
+    });
+
     $scope.batchNext = function() {
-      $scope.search.batchStart = $scope.search.batchStart + 10;
+      $scope.search.batching.batchStart = $scope.search.batching.batchStart + 10;
       updateSearchResults();
     };
     $scope.batchPrevious = function() {
-      $scope.search.batchStart = $scope.search.batchStart - 10;
+      $scope.search.batching.batchStart = $scope.search.batching.batchStart - 10;
       updateSearchResults();
     };
     $scope.changeFacet = function(portalType) {
@@ -104,6 +123,12 @@ myModule.controller('SearchController',
         </li>
       </ul>
       <h3>Results</h3>
+      <h4>Pagination</h4>
+      TotalItems: {{search.batching.totalItems}}<br />
+      BatchStart: <input ng-model="search.batching.batchStart" /><br />
+      BatchSize: <input ng-model="search.batching.batchSize" /><br />
+      CurrentPage: <input ng-model="search.batching.currentPage" /><br />
+      <pagination boundary-links="true" total-items="search.batching.totalItems" ng-model="search.batching.currentPage" class="pagination-sm" previous-text="&lsaquo;" next-text="&rsaquo;" first-text="&laquo;" last-text="&raquo;"></pagination>
       <ul>
         <li ng-repeat="item in search.results">
           <a ng-href="{{item.url}}">
@@ -111,8 +136,6 @@ myModule.controller('SearchController',
           </a>
         </li>
       </ul>
-      <a ng-click="batchPrevious()">Previous</a>
-      <a ng-click="batchNext()">Next</a>
     </div>
   </div>
 

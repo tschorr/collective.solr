@@ -30,7 +30,7 @@ class SearchView(SearchFacetsView):
 class JSONSearchResults(SearchFacetsView):
 
     def __call__(self):
-        b_start = self.request.get('b_start', 0)
+        b_start = self.request.get('b_start', 1)
         b_size = self.request.get('b_size', 10)
         catalog = getToolByName(self.context, 'portal_catalog')
         results = [
@@ -45,7 +45,7 @@ class JSONSearchResults(SearchFacetsView):
                 use_types_blacklist=True,
                 use_navigation_root=True,
                 b_start=b_start,
-                b_size=b_size+1,
+                b_size=b_size,
                 hl='true'
             ) if brain is not None  # otherwise => AttributeError: 'NoneType'
         ]
@@ -59,4 +59,5 @@ class JSONSearchResults(SearchFacetsView):
         return json.dumps({
             'results': results,
             'facets': facets,
+            'totalItems': 18,
         })
