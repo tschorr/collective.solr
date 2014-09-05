@@ -32,6 +32,7 @@ class JSONSearchResults(SearchFacetsView):
     def __call__(self):
         b_start = self.request.get('b_start', 1)
         b_size = self.request.get('b_size', 10)
+        b_start = int(b_start) - 1  # batching starts with 0
         catalog = getToolByName(self.context, 'portal_catalog')
         results = [
             {
