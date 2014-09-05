@@ -55,9 +55,10 @@ class JSONSearchResults(SearchFacetsView):
             facet='true',
             facet_field='portal_type'
         )
+        current_facet_value = self.request['fq'].split(':')[1]
         facets = solr_search_results.facet_counts['facet_fields']['portal_type']
         return json.dumps({
             'results': results,
             'facets': facets,
-            'totalItems': 18,
+            'totalItems': facets[current_facet_value],
         })
