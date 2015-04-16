@@ -1,0 +1,33 @@
+<h1>Solr Maintenance</h1>
+<ul>
+  <li>
+    <a tal:attributes="href string:${request/URL}/clear" href="#">
+      Clear Solr Index
+    </a><br />
+    Clear all data from Solr, i.e. delete all indexed objects
+  </li>
+  <li>
+    <a tal:attributes="href string:${request/URL}/reindex" href="#">
+      Reindex Solr Index
+    </a><br />
+    Find all contentish objects (meaning all objects derived from one of the catalog mixin classes) and (re)indexes them.
+  </li>
+  <li>
+    <a tal:attributes="href string:${request/URL}/sync" href="#">
+      Sync Solr Index
+    </a><br />
+    Sync the Solr index with the portal catalog. Records contained in the catalog but not in Solr will be indexed and records not contained in the catalog will be removed.
+  </li>
+  <li>
+    <a tal:attributes="href string:${request/URL}/cleanup" href="#">
+      Cleanup Solr Index
+    </a><br />
+    Remove entries from solr that don't have a corresponding Zope object or have a different UID than the real object.
+  </li>
+  <li>
+    <a tal:attributes="href string:${request/URL}/optimize" href="#">
+      Optimize Solr Indexes
+    </a><br />
+    Optimizing 'defragments' your index. The space taken by deleted document data is reclaimed and can merge the index into fewer segments. This can improve search performance a lot.
+  </li>
+</ul>

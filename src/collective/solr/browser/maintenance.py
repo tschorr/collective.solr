@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from Products.Five.browser.pagetemplatefile import ViewPageTemplateFile
 from logging import getLogger
 from time import time, clock, strftime
 
@@ -62,6 +63,11 @@ def notimeout(func):
 class SolrMaintenanceView(BrowserView):
     """ helper view for indexing all portal content in Solr """
     implements(ISolrMaintenanceView)
+
+    index = ViewPageTemplateFile('maintenance.pt')
+
+    def __call__(self):
+        return self.index()
 
     def mklog(self, use_std_log=False):
         """ helper to prepend a time stamp to the output """

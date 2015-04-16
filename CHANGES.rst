@@ -4,6 +4,9 @@ Changelog
 4.1.1 (unreleased)
 ------------------
 
+- Add maintenance view that lists the possible options.
+  [timo]
+
 - Added context to search utility. This allows query to be used in AJAX calls.
   [tomgross]
 
