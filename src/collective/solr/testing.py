@@ -11,7 +11,6 @@ from plone.app.testing import TEST_USER_ID
 from plone.app.testing import TEST_USER_NAME
 from plone.app.testing import applyProfile
 from plone.app.testing import login
-from plone.app.testing import PloneSandboxLayer
 from plone.app.testing import setRoles
 from plone.testing import Layer
 from plone.testing.z2 import installProduct
@@ -38,12 +37,10 @@ class SolrLayer(Layer):
             bases=None,
             name='Solr Layer',
             module=None,
-            solr_active=False,
             solr_host='localhost',
             solr_port=8983,
             solr_base='/solr'):
         super(SolrLayer, self).__init__(bases, name, module)
-        self.solr_active = solr_active
         self.solr_host = solr_host
         self.solr_port = solr_port
         self.solr_base = solr_base
@@ -96,9 +93,24 @@ class SolrLayer(Layer):
 SOLR_FIXTURE = SolrLayer()
 
 
-class CollectiveSolrLayer(PloneSandboxLayer, SolrLayer):
+class CollectiveSolrLayer(PloneSandboxLayer):
 
-    defaultBases = (PLONE_FIXTURE,)
+    defaultBases = (SOLR_FIXTURE, PLONE_FIXTURE)
+
+    def __init__(
+            self,
+            bases=None,
+            name='Collective Solr Layer',
+            module=None,
+            solr_active=False,
+            solr_host='localhost',
+            solr_port=8983,
+            solr_base='/solr'):
+        super(CollectiveSolrLayer, self).__init__(bases, name, module)
+        self.solr_active = solr_active
+        self.solr_host = solr_host
+        self.solr_port = solr_port
+        self.solr_base = solr_base
 
     def setUpZope(self, app, configurationContext):
         # Load ZCML
