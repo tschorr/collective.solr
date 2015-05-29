@@ -13,6 +13,9 @@ Changelog
 - Added context to search utility. This allows query to be used in AJAX calls.
   [tomgross]
 
+- Added behavior that provides showinsearch and searchwords for dexterity types.
+  [reinhardt]
+
 
 4.1.0 (2015-02-19)
 ------------------

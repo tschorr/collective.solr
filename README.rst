@@ -159,7 +159,9 @@ Exclude from search and elevation
 ---------------------------------
 
 By default this add-on introduces two new fields to the default content types
-or any custom type derived from ATContentTypes.
+or any custom type derived from ATContentTypes. For dexterity content types,
+including plone.app.contenttypes, a behavior is provided which must be manually
+activated on the desired content types.
 
 The `showinsearch` boolean field lets you hide specific content items from the
 search results, by setting the value to `false`.

@@ -52,6 +52,7 @@ setup(
         'plone.app.layout',
         'plone.app.testing',
         'plone.app.vocabularies',
+        'plone.behavior',
         'plone.browserlayer',
         'plone.indexer',
         'setuptools',
