@@ -8,6 +8,13 @@ from Products.CMFCore.utils import getToolByName
 from ZODB.POSException import ConflictError
 from collective.solr.interfaces import ICheckIndexable
 from collective.solr.interfaces import ISolrAddHandler
+try:
+    from plone.app.content.interfaces import IIndexableObjectWrapper
+except ImportError:
+    # Plone 5
+    from plone.indexer.interfaces import IIndexableObjectWrapper
+from plone.indexer.interfaces import IIndexableObject
+
 from collective.solr.interfaces import ISolrConnectionConfig
 from collective.solr.interfaces import ISolrConnectionManager
 from collective.solr.interfaces import ISolrIndexQueueProcessor
