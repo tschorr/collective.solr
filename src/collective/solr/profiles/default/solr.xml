@@ -3,7 +3,7 @@
   <connection>
     <host value="127.0.0.1" />
     <port value="8983" />
-    <base value="/solr" />
+    <base value="/solr/collection1" />
   </connection>
   <settings>
     <async value="False" />
