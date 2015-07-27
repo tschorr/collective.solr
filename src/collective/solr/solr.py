@@ -124,7 +124,8 @@ class SolrSchema:
             (f['name'], SolrField(f, self._fieldTypes[f['type']]))
             for f in data['fields']
         ])
-        self.requiredFields = [f['name'] for f in data['fields'] if f['required']]
+        self.requiredFields = [f['name'] for f in data['fields']
+                               if f.get('required', False)]
         self.stored = [f['name'] for f in data['fields'] if f['stored']]
         self.uniqueKey = self._data.get('uniqueKey')
 

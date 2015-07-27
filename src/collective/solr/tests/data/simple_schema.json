@@ -1,0 +1,38 @@
+{
+    "name": "example",
+    "fields": [
+        {
+            "name": "id",
+            "type": "string",
+            "indexed": true,
+            "stored": true,
+            "required": true
+        },
+        {
+            "name": "name",
+            "type": "string",
+            "indexed": true,
+            "stored": true,
+            "required": true
+        },
+        {
+            "name": "age",
+            "type": "integer",
+            "indexed": true,
+            "stored": true
+        }
+    ],
+    "fieldTypes": [
+        {
+            "name": "string",
+            "class": "solr.StrField",
+            "sortMissingLast": true,
+            "omitNorms": true
+        },
+        {
+            "name": "integer",
+            "class": "solr.IntField",
+            "omitNorms": true
+        }
+    ]
+}

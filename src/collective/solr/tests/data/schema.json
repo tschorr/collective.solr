@@ -1,0 +1,619 @@
+{
+    "uniqueKey": "id",
+    "name": "example",
+    "solrQueryParser": {
+        "defaultOperator": "OR"
+    },
+    "fields": [
+        {
+            "name": "id",
+            "type": "string",
+            "indexed": true,
+            "stored": true,
+            "required": true
+        },
+        {
+            "termPositions": false,
+            "name": "sku",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": true,
+            "type": "textTight",
+            "omitNorms": true,
+            "termOffsets": false
+        },
+        {
+            "name": "name",
+            "type": "text",
+            "indexed": true,
+            "stored": true,
+            "required": true
+        },
+        {
+            "name": "nameSort",
+            "type": "string",
+            "indexed": true,
+            "stored": false
+        },
+        {
+            "name": "price",
+            "type": "sfloat",
+            "indexed": true,
+            "stored": true
+        },
+        {
+            "name": "cat",
+            "type": "text_ws",
+            "indexed": true,
+            "stored": true,
+            "multiValued": true,
+            "omitNorms": true,
+            "termVectors": true
+        },
+        {
+            "termPositions": false,
+            "name": "Creator",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": true,
+            "type": "string",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "timestamp",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": true,
+            "type": "date",
+            "default": "NOW",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "Description",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": true,
+            "type": "text",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "Language",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": true,
+            "type": "string",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "SearchableText",
+            "required": false,
+            "termVectors": false,
+            "stored": false,
+            "multiValued": false,
+            "indexed": true,
+            "type": "text",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "Subject",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": true,
+            "indexed": true,
+            "type": "string",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "Title",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": true,
+            "type": "text",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "Type",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": true,
+            "type": "string",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "allowedRolesAndUsers",
+            "required": false,
+            "termVectors": false,
+            "stored": false,
+            "multiValued": true,
+            "indexed": true,
+            "type": "string",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "created",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": true,
+            "type": "date",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "default",
+            "required": false,
+            "termVectors": false,
+            "stored": false,
+            "multiValued": true,
+            "indexed": true,
+            "type": "text",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "effective",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": true,
+            "type": "date",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "exclude_from_nav",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": false,
+            "type": "boolean",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "expires",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": true,
+            "type": "date",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "getIcon",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": false,
+            "type": "string",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "getId",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": false,
+            "type": "string",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "getRemoteUrl",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": false,
+            "type": "string",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "is_folderish",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": true,
+            "type": "boolean",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "modified",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": true,
+            "type": "date",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "object_provides",
+            "required": false,
+            "termVectors": false,
+            "stored": false,
+            "multiValued": true,
+            "indexed": true,
+            "type": "string",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "path_depth",
+            "required": false,
+            "termVectors": false,
+            "stored": false,
+            "multiValued": false,
+            "indexed": true,
+            "type": "integer",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "path_parents",
+            "required": false,
+            "termVectors": false,
+            "stored": false,
+            "multiValued": true,
+            "indexed": true,
+            "type": "string",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "path_string",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": false,
+            "type": "string",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "portal_type",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": true,
+            "type": "string",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "review_state",
+            "required": false,
+            "termVectors": false,
+            "stored": true,
+            "multiValued": false,
+            "indexed": true,
+            "type": "string",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "searchwords",
+            "required": false,
+            "termVectors": false,
+            "stored": false,
+            "multiValued": true,
+            "indexed": true,
+            "type": "string",
+            "termOffsets": false
+        },
+        {
+            "termPositions": false,
+            "name": "showinsearch",
+            "required": false,
+            "termVectors": false,
+            "stored": false,
+            "multiValued": false,
+            "indexed": true,
+            "type": "boolean",
+            "termOffsets": false
+        }
+    ],
+    "fieldTypes": [
+        {
+            "name": "sfloat",
+            "class": "solr.SortableFloatField",
+            "sortMissingLast": true,
+            "omitNorms": true
+        },
+        {
+            "name": "binary",
+            "class": "solr.BinaryField"
+        },
+        {
+            "omitNorms": true,
+            "sortMissingLast": true,
+            "name": "boolean",
+            "class": "solr.BoolField"
+        },
+        {
+            "positionIncrementGap": "0",
+            "omitNorms": true,
+            "precisionStep": "0",
+            "name": "date",
+            "class": "solr.TrieDateField"
+        },
+        {
+            "positionIncrementGap": "0",
+            "omitNorms": true,
+            "precisionStep": "0",
+            "name": "double",
+            "class": "solr.TrieDoubleField"
+        },
+        {
+            "positionIncrementGap": "0",
+            "omitNorms": true,
+            "precisionStep": "0",
+            "name": "float",
+            "class": "solr.TrieFloatField"
+        },
+        {
+            "name": "geohash",
+            "class": "solr.GeoHashField"
+        },
+        {
+            "indexed": false,
+            "stored": false,
+            "name": "ignored",
+            "multiValued": true,
+            "class": "solr.StrField"
+        },
+        {
+            "positionIncrementGap": "0",
+            "omitNorms": true,
+            "precisionStep": "0",
+            "name": "int",
+            "class": "solr.TrieIntField"
+        },
+        {
+            "positionIncrementGap": "0",
+            "omitNorms": true,
+            "precisionStep": "0",
+            "name": "integer",
+            "class": "solr.TrieIntField"
+        },
+        {
+            "subFieldSuffix": "_coordinate",
+            "name": "location",
+            "class": "solr.LatLonType"
+        },
+        {
+            "positionIncrementGap": "0",
+            "omitNorms": true,
+            "precisionStep": "0",
+            "name": "long",
+            "class": "solr.TrieLongField"
+        },
+        {
+            "subFieldSuffix": "_d",
+            "dimension": "2",
+            "name": "point",
+            "class": "solr.PointType"
+        },
+        {
+            "indexed": true,
+            "name": "random",
+            "class": "solr.RandomSortField"
+        },
+        {
+            "omitNorms": true,
+            "sortMissingLast": true,
+            "name": "string",
+            "class": "solr.StrField"
+        },
+        {
+            "positionIncrementGap": "0",
+            "omitNorms": true,
+            "precisionStep": "6",
+            "name": "tdate",
+            "class": "solr.TrieDateField"
+        },
+        {
+            "positionIncrementGap": "0",
+            "omitNorms": true,
+            "precisionStep": "8",
+            "name": "tdouble",
+            "class": "solr.TrieDoubleField"
+        },
+        {
+            "name": "textTight",
+            "class": "solr.TextField",
+            "positionIncrementGap": "100",
+            "queryAnalyzer": {
+                "filters": [
+                    {
+                        "class": "solr.SynonymFilterFactory",
+                        "synonyms": "synonyms.txt",
+                        "ignoreCase": true,
+                        "expand": true
+                    },
+                    {
+                        "class": "solr.StopFilterFactory",
+                        "synonyms": "stopwords.txt",
+                        "ignoreCase": true
+                    },
+                    {
+                        "class": "solr.WordDelimiterFilterFactory",
+                        "generateWordParts": "0",
+                        "generateNumberParts": "0",
+                        "catenateWords": "1",
+                        "catenateNumbers": "1",
+                        "catenateAll": "0"
+                    },
+                    {
+                        "class": "solr.LowerCaseFilterFactory"
+                    },
+                    {
+                        "class": "solr.EnglishPorterFilterFactory",
+                        "protected": "protwords.txt"
+                    },
+                    {
+                        "class": "solr.RemoveDuplicatesTokenFilterFactory"
+                    }
+                ],
+                "tokenizer": {
+                    "class": "solr.WhitespaceTokenizerFactory"
+                }
+            }
+        },
+        {
+            "positionIncrementGap": "100",
+            "queryAnalyzer": {
+                "filters": [
+                    {
+                        "class": "solr.ICUFoldingFilterFactory"
+                    },
+                    {
+                        "splitOnNumerics": "0",
+                        "stemEnglishPossessive": "0",
+                        "class": "solr.WordDelimiterFilterFactory",
+                        "splitOnCaseChange": "0",
+                        "preserveOriginal": "1"
+                    },
+                    {
+                        "class": "solr.TrimFilterFactory"
+                    },
+                    {
+                        "ignoreCase": "true",
+                        "class": "solr.StopFilterFactory",
+                        "words": "stopwords.txt"
+                    }
+                ],
+                "tokenizer": {
+                    "class": "solr.ICUTokenizerFactory"
+                }
+            },
+            "indexAnalyzer": {
+                "filters": [
+                    {
+                        "class": "solr.ICUFoldingFilterFactory"
+                    },
+                    {
+                        "splitOnNumerics": "0",
+                        "stemEnglishPossessive": "0",
+                        "class": "solr.WordDelimiterFilterFactory",
+                        "splitOnCaseChange": "0",
+                        "preserveOriginal": "1"
+                    },
+                    {
+                        "class": "solr.TrimFilterFactory"
+                    },
+                    {
+                        "ignoreCase": "true",
+                        "class": "solr.StopFilterFactory",
+                        "words": "stopwords.txt"
+                    }
+                ],
+                "tokenizer": {
+                    "class": "solr.ICUTokenizerFactory"
+                }
+            },
+            "name": "text",
+            "class": "solr.TextField"
+        },
+        {
+            "positionIncrementGap": "100",
+            "queryAnalyzer": {
+                "tokenizer": {
+                    "class": "solr.WhitespaceTokenizerFactory"
+                }
+            },
+            "indexAnalyzer": {
+                "tokenizer": {
+                    "class": "solr.WhitespaceTokenizerFactory"
+                }
+            },
+            "name": "text_ws",
+            "class": "solr.TextField"
+        },
+        {
+            "positionIncrementGap": "0",
+            "omitNorms": true,
+            "precisionStep": "8",
+            "name": "tfloat",
+            "class": "solr.TrieFloatField"
+        },
+        {
+            "positionIncrementGap": "0",
+            "omitNorms": true,
+            "precisionStep": "8",
+            "name": "tint",
+            "class": "solr.TrieIntField"
+        },
+        {
+            "positionIncrementGap": "0",
+            "omitNorms": true,
+            "precisionStep": "8",
+            "name": "tlong",
+            "class": "solr.TrieLongField"
+        }
+    ],
+    "version": 1.4,
+    "dynamicFields": [
+        {
+            "type": "ignored",
+            "name": "tika_*"
+        }
+    ],
+    "copyFields": [
+        {
+            "dest": "default",
+            "source": "Description"
+        },
+        {
+            "dest": "default",
+            "source": "SearchableText"
+        },
+        {
+            "dest": "default",
+            "source": "Subject"
+        },
+        {
+            "dest": "default",
+            "source": "Title"
+        }
+    ],
+    "defaultSearchField": "default"
+}

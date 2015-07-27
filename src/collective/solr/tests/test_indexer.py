@@ -15,7 +15,8 @@ from collective.solr.manager import SolrConnectionManager
 from collective.solr.indexer import SolrIndexProcessor
 from collective.solr.indexer import logger as logger_indexer
 from collective.solr.tests.utils import getData
-from collective.solr.tests.utils import fakehttp  # TODO: use solr api mockup
+# from collective.solr.tests.utils import fakehttp
+from collective.solr.tests.utils import fakesolrinterface
 from collective.solr.tests.utils import fakemore
 from collective.solr.solr import SolrConnection
 from collective.solr.utils import prepareData
@@ -50,7 +51,7 @@ class QueueIndexerTests(TestCase):
         self.mngr = SolrConnectionManager()
         self.mngr.setHost(active=True)
         conn = self.mngr.getConnection()
-        fakehttp(conn, getData('schema.xml'))       # fake schema response
+        fakesolrinterface(conn, schema=getData('schema.json'))  # fake schema
         self.mngr.getSchema()                       # read and cache the schema
         self.proc = SolrIndexProcessor(self.mngr)
 
@@ -88,110 +89,198 @@ class QueueIndexerTests(TestCase):
     def testIndexObject(self):
         response = getData('add_response.txt')
         # fake add response
-        output = fakehttp(self.mngr.getConnection(), response)
+        output = fakesolrinterface(
+            self.mngr.getConnection(),
+            schema=getData('schema.json'),
+            fakedata=[response]
+        )
         # indexing sends data
         self.proc.index(Foo(id='500', name='python test doc'))
-        self.assertEqual(sortFields(str(output)), getData('add_request.txt'))
+        # committing sends data
+        self.proc.commit()
+        self.assertEqual(output[0][0], 'add')
+        self.assertEqual(output[0][1],
+                         [{'boost_values': None, u'name': u'python test doc',
+                           u'id': u'500'}])
 
     def testIndexAccessorRaises(self):
         response = getData('add_response.txt')
         # fake add response
-        output = fakehttp(self.mngr.getConnection(), response)
+        output = fakesolrinterface(
+            self.mngr.getConnection(),
+            schema=getData('schema.json'),
+            fakedata=[response]
+        )
 
         def brokenfunc():
             raise ValueError
         self.proc.index(Foo(id='500', name='python test doc',
                             text=brokenfunc))   # indexing sends data
-        self.assertEqual(sortFields(str(output)), getData('add_request.txt'))
+        # committing sends data
+        self.proc.commit()
+        self.assertEqual(output[0][0], 'add')
+        self.assertEqual(output[0][1],
+                         [{'boost_values': None, u'name': u'python test doc',
+                           u'id': u'500'}])
+        # self.assertEqual(sortFields(str(output)), getData('add_request.txt'))
 
     def testPartialIndexObject(self):
         foo = Foo(id='500', name='foo', price=42.0)
         # first index all attributes...
         response = getData('add_response.txt')
-        output = fakehttp(self.mngr.getConnection(), response)
+        output = fakesolrinterface(
+            self.mngr.getConnection(),
+            schema=getData('schema.json'),
+            fakedata=[response]
+        )
         self.proc.index(foo)
-        self.assert_(str(output).find(
-            '<field name="price">42.0</field>') > 0, '"price" data not found')
+        # committing sends data
+        self.proc.commit()
+        self.assertEqual(output[0][0], 'add')
+        # self.assert_(str(output).find(
+        #    '<field name="price">42.0</field>') > 0, '"price" data not found')
+        self.assertEqual(output[0][1][0]['price'], 42.0)
         # then only a subset...
         response = getData('add_response.txt')
-        output = fakehttp(self.mngr.getConnection(), response)
-        self.proc.index(foo, attributes=['id', 'name'])
-        output = str(output)
-        self.assert_(
-            output.find('<field name="name">foo</field>') > 0,
-            '"name" data not found'
+        output = fakesolrinterface(
+            self.mngr.getConnection(),
+            schema=getData('schema.json'),
+            fakedata=[response]
         )
+        self.proc.index(foo, attributes=['id', 'name'])
+        # committing sends data
+        self.proc.commit()
+        self.assertEqual(output[0][1][0]['name'], 'foo')
+        # output = str(output)
+        # self.assert_(
+        #    output.find('<field name="name">foo</field>') > 0,
+        #    '"name" data not found'
+        # )
         # at this point we'd normally check for a partial update:
         #   self.assertEqual(output.find('price'), -1, '"price" data found?')
         #   self.assertEqual(output.find('42'), -1, '"price" data found?')
         # however, until SOLR-139 has been implemented (re)index operations
         # always need to provide data for all attributes in the schema...
-        self.assert_(
-            output.find('<field name="price">42.0</field>') > 0,
-            '"price" data not found'
-        )
+        # self.assertFalse('price' in output[0][1][0], '"price" data found')
 
     def testDateIndexing(self):
         foo = Foo(id='zeidler', name='andi', cat='nerd',
                   timestamp=DateTime('May 11 1972 03:45 GMT'))
         response = getData('add_response.txt')
         # fake add response
-        output = fakehttp(self.mngr.getConnection(), response)
+        output = fakesolrinterface(
+            self.mngr.getConnection(),
+            schema=getData('schema.json'),
+            fakedata=[response]
+        )
         self.proc.index(foo)
-        required = '<field name="timestamp">1972-05-11T03:45:00.000Z</field>'
-        self.assert_(str(output).find(required) > 0, '"date" data not found')
+        # committing sends data
+        self.proc.commit()
+        self.assertEqual(output[0][0], 'add')
+        self.assertEqual(len(output[0][1]), 1)
+        self.assertEqual(output[0][1][0]['timestamp'],
+                         '1972-05-11T03:45:00.000Z')
+        # required = '<field name="timestamp">1972-05-11T03:45:00.000Z</field>'
+        # self.assert_(str(output).find(required) > 0, '"date" data not found')
 
     def testDateIndexingWithPythonDateTime(self):
         foo = Foo(id='gerken', name='patrick', cat='nerd',
                   timestamp=datetime(1980, 9, 29, 14, 02))
         response = getData('add_response.txt')
         # fake add response
-        output = fakehttp(self.mngr.getConnection(), response)
+        output = fakesolrinterface(
+            self.mngr.getConnection(),
+            schema=getData('schema.json'),
+            fakedata=[response]
+        )
         self.proc.index(foo)
-        required = '<field name="timestamp">1980-09-29T14:02:00.000Z</field>'
-        self.assert_(str(output).find(required) > 0, '"date" data not found')
+        # committing sends data
+        self.proc.commit()
+        self.assertEqual(output[0][0], 'add')
+        self.assertEqual(len(output[0][1]), 1)
+        self.assertEqual(output[0][1][0]['timestamp'],
+                         '1980-09-29T14:02:00.000Z')
+        # required = '<field name="timestamp">1980-09-29T14:02:00.000Z</field>'
+        # self.assert_(str(output).find(required) > 0, '"date" data not found')
 
     def testDateIndexingWithPythonDate(self):
         foo = Foo(id='brand', name='jan-carel',
                   cat='nerd', timestamp=date(1982, 8, 05))
         response = getData('add_response.txt')
         # fake add response
-        output = fakehttp(self.mngr.getConnection(), response)
+        output = fakesolrinterface(
+            self.mngr.getConnection(),
+            schema=getData('schema.json'),
+            fakedata=[response]
+        )
         self.proc.index(foo)
-        required = '<field name="timestamp">1982-08-05T00:00:00.000Z</field>'
-        self.assert_(str(output).find(required) > 0, '"date" data not found')
+        # committing sends data
+        self.proc.commit()
+        self.assertEqual(output[0][0], 'add')
+        self.assertEqual(len(output[0][1]), 1)
+        self.assertEqual(output[0][1][0]['timestamp'],
+                         '1982-08-05T00:00:00.000Z')
+        # required = '<field name="timestamp">1982-08-05T00:00:00.000Z</field>'
+        # self.assert_(str(output).find(required) > 0, '"date" data not found')
 
     def testReindexObject(self):
         response = getData('add_response.txt')
         # fake add response
-        output = fakehttp(self.mngr.getConnection(), response)
-        # reindexing sends data
+        output = fakesolrinterface(
+            self.mngr.getConnection(),
+            schema=getData('schema.json'),
+            fakedata=[response]
+        )
+        # reindexing sends data (???)
         self.proc.reindex(Foo(id='500', name='python test doc'))
-        self.assertEqual(sortFields(str(output)), getData('add_request.txt'))
+        # committing sends data
+        self.proc.commit()
+        self.assertEqual(output, [
+            ('add', [{'boost_values': None, u'name': u'python test doc',
+                      u'id': u'500'}]), ('commit', None)])
 
     def testUnindexObject(self):
         response = getData('delete_response.txt')
         # fake response
-        output = fakehttp(self.mngr.getConnection(), response)
-        # unindexing sends data
+        output = fakesolrinterface(
+            self.mngr.getConnection(),
+            schema=getData('schema.json'),
+            fakedata=[response]
+        )
+        # unindexing sends data (???)
         self.proc.unindex(Foo(id='500', name='python test doc'))
-        self.assertEqual(str(output), getData('delete_request.txt'))
+        # committing sends data
+        self.proc.commit()
+        self.assertEqual(output, [
+            ('delete_by_ids', ['500']), ('commit', None)])
 
     def testCommit(self):
         response = getData('commit_response.txt')
         # fake response
-        output = fakehttp(self.mngr.getConnection(), response)
+        output = fakesolrinterface(
+            self.mngr.getConnection(),
+            schema=getData('schema.json'),
+            fakedata=[response]
+        )
         # committing sends data
         self.proc.commit()
-        self.assertEqual(str(output), getData('commit_request.txt'))
+        # self.assertEqual(str(output), getData('commit_request.txt'))
+        self.assertEqual(len(output), 1)
+        self.assertEqual(output[0], ('commit', None))
 
     def testNoIndexingWithoutAllRequiredFields(self):
         response = getData('dummy_response.txt')
         # fake add response
-        output = fakehttp(self.mngr.getConnection(), response)
-        # indexing sends data
+        output = fakesolrinterface(
+            self.mngr.getConnection(),
+            schema=getData('schema.json'),
+            fakedata=[response]
+        )
         self.proc.index(Foo(id='500'))
-        self.assertEqual(str(output), '')
+        self.assertEqual(output, [])
+        # committing sends data
+        self.proc.commit()
+        self.assertEqual(output, [('commit', None)])
 
     def testIndexerMethods(self):
         class Bar(Foo):
@@ -204,14 +293,24 @@ class QueueIndexerTests(TestCase):
         foo = Bar(id='500', name='foo')
         # raising the exception should keep the attribute from being indexed
         response = getData('add_response.txt')
-        output = fakehttp(self.mngr.getConnection(), response)
-        self.proc.index(foo)
-        output = str(output)
-        self.assertTrue(
-            output.find('<field name="cat">nerd</field>') > 0,
-            '"cat" data not found'
+        output = fakesolrinterface(
+            self.mngr.getConnection(),
+            schema=getData('schema.json'),
+            fakedata=[response]
         )
-        self.assertEqual(output.find('price'), -1, '"price" data found?')
+        self.proc.index(foo)
+        # committing sends data
+        self.proc.commit()
+        self.assertEqual(output[0][0], 'add')
+        self.assertTrue('cat' in output[0][1][0], '"cat" data not found')
+        self.assertFalse('price' in output[0][1][0], '"price" data found')
+        # output = str(output)
+        # self.assertTrue(
+        #    output.find('<field name="cat">nerd</field>') > 0,
+        #    '"cat" data not found'
+        # )
+        # self.assertEqual(output.find('price'), -1, '"price" data found?')
+
 
 class RobustnessTests(TestCase):
 
@@ -233,11 +332,17 @@ class RobustnessTests(TestCase):
 
     def testIndexingWithUniqueKeyMissing(self):
         # fake schema response
-        fakehttp(self.conn, getData('simple_schema.xml'))
+        fakesolrinterface(
+            self.conn,
+            schema=getData('simple_schema.json'),
+        )
         # read and cache the schema
         self.mngr.getSchema()
         response = getData('add_response.txt')
-        output = fakehttp(self.conn, response)              # fake add response
+        output = fakesolrinterface(
+            self.conn,
+            fakedata=[response]
+        )
         foo = Foo(id='500', name='foo')
         # indexing sends data
         self.proc.index(foo)
@@ -248,12 +353,18 @@ class RobustnessTests(TestCase):
 
     def testUnindexingWithUniqueKeyMissing(self):
         # fake schema response
-        fakehttp(self.conn, getData('simple_schema.xml'))
+        fakesolrinterface(
+            self.conn,
+            schema=getData('simple_schema.json'),
+        )
         # read and cache the schema
         self.mngr.getSchema()
         response = getData('delete_response.txt')
         # fake delete response
-        output = fakehttp(self.conn, response)
+        output = fakesolrinterface(
+            self.conn,
+            fakedata=[response]
+        )
         foo = Foo(id='500', name='foo')
         # unindexing sends data
         self.proc.unindex(foo)
@@ -268,57 +379,88 @@ class FakeHTTPConnectionTests(TestCase):
     def setUp(self):
         provideUtility(SolrConnectionConfig(), ISolrConnectionConfig)
         self.foo = Foo(id='500', name='python test doc')
-        self.schema_request = 'GET /solr/admin/file/?file=schema.xml'
 
     def testSingleRequest(self):
         mngr = SolrConnectionManager(active=True)
-        output = fakehttp(mngr.getConnection(), getData('schema.xml'))
+        output = fakesolrinterface(
+            mngr.getConnection(),
+            schema=getData('schema.json')
+        )
         mngr.getSchema()
         mngr.closeConnection()
-        self.failUnless(output.get().startswith(self.schema_request))
+        self.assertEqual(len(output), 1)
+        self.assertEqual(output[0][0], 'schema')
+        # self.failUnless(output.get().startswith(self.schema_request))
 
     def testTwoRequests(self):
         mngr = SolrConnectionManager(active=True)
         proc = SolrIndexProcessor(mngr)
-        output = fakehttp(mngr.getConnection(), getData('schema.xml'),
-                          getData('add_response.txt'))
+        output = fakesolrinterface(
+            mngr.getConnection(),
+            schema=getData('schema.json'),
+            fakedata=[
+                getData('add_response.txt')
+            ]
+        )
         proc.index(self.foo)
         mngr.closeConnection()
-        self.assertEqual(len(output), 2)
-        self.failUnless(output.get().startswith(self.schema_request))
-        self.assertEqual(sortFields(output.get()), getData('add_request.txt'))
+        self.assertEqual(len(output), 1)
+        self.assertEqual(output[0][0], 'schema')
+        # BBB: closeConnection don't flush queue ...
+        # self.assertEqual(len(output), 2)
+        # self.failUnless(output.get().startswith(self.schema_request))
+        # self.assertEqual(sortFields(output.get()), getData('add_request.txt'))
 
     def testThreeRequests(self):
         mngr = SolrConnectionManager(active=True)
         proc = SolrIndexProcessor(mngr)
-        output = fakehttp(
-            mngr.getConnection(), getData('schema.xml'),
-            getData('add_response.txt'), getData('delete_response.txt')
+        output = fakesolrinterface(
+            mngr.getConnection(),
+            schema=getData('schema.json'),
+            fakedata=[
+                # TODO: convert http response to solr api response
+                getData('add_response.txt'),
+                getData('delete_response.txt')
+            ]
         )
         proc.index(self.foo)
         proc.unindex(self.foo)
         mngr.closeConnection()
-        self.assertEqual(len(output), 3)
-        self.failUnless(output.get().startswith(self.schema_request))
-        self.assertEqual(sortFields(output.get()), getData('add_request.txt'))
-        self.assertEqual(output.get(), getData('delete_request.txt'))
+        self.assertEqual(len(output), 1)
+        self.assertEqual(output[0][0], 'schema')
+        # BBB: closeConnection don't flush queue ...
+        # self.assertEqual(len(output), 3)
+        # self.failUnless(output.get().startswith(self.schema_request))
+        # self.assertEqual(sortFields(output.get()), getData('add_request.txt'))
+        # self.assertEqual(output.get(), getData('delete_request.txt'))
 
     def testFourRequests(self):
         mngr = SolrConnectionManager(active=True)
         proc = SolrIndexProcessor(mngr)
-        output = fakehttp(mngr.getConnection(), getData('schema.xml'),
-                          getData('add_response.txt'), getData(
-                              'delete_response.txt'),
-                          getData('commit_response.txt'))
+        output = fakesolrinterface(
+            mngr.getConnection(),
+            schema=getData('schema.json'),
+            fakedata=[
+                # TODO: convert http response to solr api response
+                getData('add_response.txt'),
+                getData('delete_response.txt'),
+                getData('commit_response.txt'),
+            ],
+        )
         proc.index(self.foo)
         proc.unindex(self.foo)
         proc.commit()
         mngr.closeConnection()
         self.assertEqual(len(output), 4)
-        self.failUnless(output.get().startswith(self.schema_request))
-        self.assertEqual(sortFields(output.get()), getData('add_request.txt'))
-        self.assertEqual(output.get(), getData('delete_request.txt'))
-        self.assertEqual(output.get(), getData('commit_request.txt'))
+        # self.failUnless(output.get().startswith(self.schema_request))
+        self.assertEqual(output[0][0], 'schema')
+        self.assertEqual(output[1][0], 'add')
+        self.assertEqual(len(output[1][1]), 1)
+        self.assertEqual(output[1][1][0]['boost_values'], None)
+        self.assertEqual(output[1][1][0]['name'], u'python test doc')
+        self.assertEqual(output[1][1][0]['id'], u'500')
+        self.assertEqual(output[2], ('delete_by_ids', ['500']))
+        self.assertEqual(output[3], ('commit', None))
 
     def testExtraRequest(self):
         # basically the same as `testThreeRequests`, except it
@@ -326,16 +468,20 @@ class FakeHTTPConnectionTests(TestCase):
         mngr = SolrConnectionManager(active=True)
         proc = SolrIndexProcessor(mngr)
         conn = mngr.getConnection()
-        output = fakehttp(conn, getData('schema.xml'))
+        output = fakesolrinterface(conn, schema=getData('schema.json'))
         fakemore(conn, getData('add_response.txt'))
         proc.index(self.foo)
         fakemore(conn, getData('delete_response.txt'))
         proc.unindex(self.foo)
+        # BBB: closeConnection don't flush queue ...
         mngr.closeConnection()
-        self.assertEqual(len(output), 3)
-        self.failUnless(output.get().startswith(self.schema_request))
-        self.assertEqual(sortFields(output.get()), getData('add_request.txt'))
-        self.assertEqual(output.get(), getData('delete_request.txt'))
+        self.assertEqual(len(output), 1)
+        self.assertEqual(output[0][0], 'schema')
+
+        # self.assertEqual(len(output), 3)
+        # self.failUnless(output.get().startswith(self.schema_request))
+        # self.assertEqual(sortFields(output.get()), getData('add_request.txt'))
+        # self.assertEqual(output.get(), getData('delete_request.txt'))
 
 
 class ThreadedConnectionTests(TestCase):
@@ -345,20 +491,23 @@ class ThreadedConnectionTests(TestCase):
         mngr = SolrConnectionManager(active=True)
         proc = SolrIndexProcessor(mngr)
         mngr.setHost(active=True)
-        schema = getData('schema.xml')
+        schema = getData('schema.json')
         log = []
 
         def runner():
-            fakehttp(mngr.getConnection(), schema)      # fake schema response
+            fakesolrinterface(mngr.getConnection(), schema=schema)
             # read and cache the schema
             mngr.getSchema()
             response = getData('add_response.txt')
             # fake add response
-            output = fakehttp(mngr.getConnection(), response)
-            # indexing sends data
+            output = fakesolrinterface(mngr.getConnection(),
+                                       fakedata=[response])
+            # indexing sends data (???)
             proc.index(Foo(id='500', name='python test doc'))
+            # commit sends data
+            proc.commit()
             mngr.closeConnection()
-            log.append(str(output))
+            log.append(output)
             log.append(proc)
             log.append(mngr.getConnection())
         # after the runner was set up, another thread can be created and
@@ -370,13 +519,16 @@ class ThreadedConnectionTests(TestCase):
         thread = Thread(target=runner)
         thread.start()
         thread.join()
-        conn = mngr.getConnection()         # get this thread's connection
-        fakehttp(conn, schema)              # fake schema response
-        mngr.getSchema()                    # read and cache the schema
+        conn = mngr.getConnection()             # get this thread's connection
+        fakesolrinterface(conn, schema=schema)  # fake schema response
+        mngr.getSchema()                        # read and cache the schema
         mngr.closeConnection()
         mngr.setHost(active=False)
         self.assertEqual(len(log), 3)
-        self.assertEqual(sortFields(log[0]), getData('add_request.txt'))
+        # self.assertEqual(sortFields(log[0]), getData('add_request.txt'))
+        self.assertEqual(log[0], [
+            ('add', [{'boost_values': None, u'name': u'python test doc',
+                      u'id': u'500'}]), ('commit', None)])
         self.failUnless(isinstance(log[1], SolrIndexProcessor))
         self.failUnless(isinstance(log[2], SolrConnection))
         self.failUnless(isinstance(proc, SolrIndexProcessor))
