@@ -14,7 +14,9 @@ from collective.solr.manager import SolrConnectionConfig
 from collective.solr.manager import SolrConnectionManager
 from collective.solr.indexer import SolrIndexProcessor
 from collective.solr.indexer import logger as logger_indexer
-from collective.solr.tests.utils import getData, fakehttp, fakemore
+from collective.solr.tests.utils import getData
+from collective.solr.tests.utils import fakehttp  # TODO: use solr api mockup
+from collective.solr.tests.utils import fakemore
 from collective.solr.solr import SolrConnection
 from collective.solr.utils import prepareData
 
@@ -210,7 +212,6 @@ class QueueIndexerTests(TestCase):
             '"cat" data not found'
         )
         self.assertEqual(output.find('price'), -1, '"price" data found?')
-
 
 class RobustnessTests(TestCase):
 

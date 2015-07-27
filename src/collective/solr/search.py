@@ -8,7 +8,7 @@ from collective.solr.mangler import cleanupQueryParameters
 from collective.solr.mangler import mangleQuery
 from collective.solr.mangler import optimizeQueryParameters
 from collective.solr.mangler import subtractQueryParameters
-from collective.solr.parser import SolrResponse
+# from collective.solr.parser import SolrResponse # TODO: SolrResponse obsoleted
 from collective.solr.queryparser import quote
 from collective.solr.utils import isWildCard
 from collective.solr.utils import prepareData
@@ -91,16 +91,14 @@ class Search(object):
             field = schema.get(index, None)
             if field is None or not field.stored:
                 logger.warning('sorting on non-stored attribute "%s"', index)
-        response = connection.search(q=query, **parameters)
-        results = SolrResponse(response)
-        response.close()
+        results = connection.search(q=query, **parameters)
         manager.setTimeout(None)
         elapsed = (time() - start) * 1000
         slow = config.slow_query_threshold
         if slow and elapsed >= slow:
             logger.info(
                 'slow query: %d/%d ms for %r (%r)',
-                results.responseHeader['QTime'], elapsed, query, parameters
+                results.QTime, elapsed, query, parameters
             )
         logger.debug(
             'highlighting info: %s' % getattr(results, 'highlighting', {})

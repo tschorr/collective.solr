@@ -1,4 +1,295 @@
 # -*- coding: utf-8 -*-
+import logging
+import scorched
+
+logger = logging.getLogger(__name__)
+
+
+class AttrDict(dict):
+    def __init__(self, *args, **kwargs):
+        super(AttrDict, self).__init__(*args, **kwargs)
+        self.__dict__ = self
+
+
+class SolrResultWrapper:
+    """ """
+    def __init__(self, result):
+        self._result = result
+
+    def __getattr__(self, name):
+        return getattr(self._result, name)
+
+    def __len__(self):
+        return len(self.docs)
+
+    def __getitem__(self, index):
+        return AttrDict(self.docs[index])
+
+    def __setitem__(self, index, value):
+        self.docs[index] = value
+
+    def extend(self, l):
+        self.docs.extend(l)
+
+
+class SolrResponseWrapper(object):
+    """ a solr search response"""
+
+    __allow_access_to_unprotected_subobjects__ = True
+
+    def __init__(self, response):
+        self._response = response
+        self._result = SolrResultWrapper(self._response.result)
+
+    def results(self):
+        return self._result
+
+    '''
+    def parse(self, data):
+        """ parse a solr response contained in a string or file-like object """
+        if isinstance(data, basestring):
+            data = StringIO(data)
+        stack = [self]      # the response object is the outmost container
+        elements = iterparse(data, events=('start', 'end'))
+        for action, elem in elements:
+            tag = elem.tag
+            if action == 'start':
+                if tag in nested:
+                    data = nested[tag]()
+                    for key, value in elem.attrib.items():
+                        if not key == 'name':   # set extra attributes
+                            setattr(data, key, value)
+                    stack.append(data)
+            elif action == 'end':
+                if tag in nested:
+                    data = stack.pop()
+                    setter(stack[-1], elem.get('name'), data)
+                elif tag in self.unmarshallers:
+                    data = self.unmarshallers[tag](elem.text)
+                    setter(stack[-1], elem.get('name'), data)
+        return self
+
+    def results(self):
+        """ return only the list of results, i.e. a `SolrResults` instance """
+        return getattr(self, 'response', [])
+
+    @property
+    def actual_result_count(self):
+        """
+        return the actual_result_count
+        """
+        if getattr(self, 'response', None):
+            return int(self.response.numFound)
+        return 0
+    '''
+
+    def __len__(self):
+        return len(self._result)
+
+    def __getitem__(self, index):
+        return self._result[index]
+
+
+# TODO: refactoring schema objects
+class SolrField:
+    def __init__(self, data, fieldtype):
+        self._data = data
+        self._fieldtype = fieldtype
+
+    @property
+    def class_(self):
+        return self._fieldtype['class']
+
+    def __getattr__(self, name):
+        """ look up attributes in dict """
+        marker = []
+        value = self._data.get(name, marker)
+        if value is not marker:
+            return value
+        else:
+            raise AttributeError(name)
+
+
+# TODO: refactoring schema objects
+class SolrSchema:
+    """ a dictionary with attribute access """
+
+    def __init__(self, data):
+        self._data = data
+        self._fieldTypes = dict([
+            (ft['name'], ft)
+            for ft in data['fieldTypes']
+        ])
+        self._fields = dict([
+            (f['name'], SolrField(f, self._fieldTypes[f['type']]))
+            for f in data['fields']
+        ])
+        self.requiredFields = [f['name'] for f in data['fields'] if f['required']]
+        self.stored = [f['name'] for f in data['fields'] if f['stored']]
+        self.uniqueKey = self._data.get('uniqueKey')
+
+    def keys(self):
+        return self._data.keys() + self._fields.keys()
+
+    def __getitem__(self, name):
+        marker = []
+        # FIXME:
+        # value = self._data.get(name, self._fields.get(name, marker))
+        value = self._fields.get(name, marker)
+        if value is not marker:
+            return value
+        else:
+            raise AttributeError(name)
+
+    def get(self, name, default=None):
+        try:
+            return self.__getitem__(name)
+        except AttributeError:
+            return default
+
+    '''
+    def __getattr__(self, name):
+        """ look up attributes in dict """
+        marker = []
+        value = self._data.get(name, self._fields.get(name, marker))
+        if value is not marker:
+            return value
+        else:
+            raise AttributeError(name)
+    '''
+
+    '''
+    # BBB: unused ?
+    @property
+    def fields(self):
+        """ return list of all fields the schema consists of """
+        for name, field in self._fields.items():
+            if isinstance(field, SolrField):
+                yield field
+
+    @property
+    def stored(self):
+        """ return names of all stored fields, a.k.a. metadata """
+        for field in self.fields:
+            if field.stored:
+                yield field.name
+    '''
+
+
+class SolrException(scorched.exc.SolrError):
+    """ An exception thrown by solr connections """
+
+
+class SolrConnection:
+
+    def __init__(self, host='localhost:8983', solrBase='/solr',
+                 persistent=True, timeout=None):
+        self.host = host
+        self.solrBase = str(solrBase)
+        self.persistent = persistent
+        self.reconnects = 0
+        # self.encoder = codecs.getencoder('utf-8')
+        # responses from Solr will always be in UTF-8
+        # self.decoder = codecs.getdecoder('utf-8')
+
+        # TODO: manage https
+        # BBB: scorched doesn't support timeout
+        # self.conn = pysolr.Solr(
+        #    'http://{}/{}'.format(host, solrBase), timeout=timeout)
+        self.conn = scorched.SolrInterface(
+            'http://{}{}'.format(host, solrBase))
+
+        self._queue = []  # was xmlbody
+
+        # self.conn.set_debuglevel(1000000)
+        # self.xmlbody = []
+        # self.xmlheaders = {'Content-Type': 'text/xml; charset=utf-8'}
+        # self.xmlheaders.update(postHeaders)
+        # if not self.persistent:
+        #    self.xmlheaders['Connection'] = 'close'
+        # self.formheaders = {
+        #    'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8'
+        # }
+        # if not self.persistent:
+        #    self.formheaders['Connection'] = 'close'
+
+    def __str__(self):
+        return (
+            'SolrConnection{host=%s, solrBase=%s, persistent=%s, '
+            'postHeaders=%s, reconnects=%s}' % (
+                self.host,
+                self.solrBase,
+                self.persistent,
+                'unused',  # self.xmlheaders,
+                self.reconnects
+            )
+        )
+
+    def close(self):
+        # self.conn.close()
+        logger.warning('NOT IMPLEMENTED - close connection on %r', self)
+
+    def setTimeout(self, timeout):
+        """ set a timeout value for the currently open connection """
+        logger.warning('NOT IMPLEMENTED - setting socket timeout on %r: %s',
+                       self, timeout)
+
+    def getSchema(self):
+        """
+        """
+        return SolrSchema(self.conn.schema)
+
+    def delete(self, id):
+        if isinstance(id, basestring):
+            ids = [id, ]
+        else:
+            ids = id
+        self._queue.append(("delete_by_ids", {'ids': ids}))
+
+    def deleteByQuery(self, query):
+        # TODO: check for query escaping
+        # TODO: old-style queue commands instead to do it now
+        self._queue.append(("delete_by_query", {'query': query}))
+
+    def add(self, **data):
+        # TODO: check for query escaping
+        # TODO: old-style queue commands instead to do it now
+        # BBB: wait for https://github.com/lugensa/scorched/pull/11
+        for key, value in data.items():
+            if isinstance(value, str):
+                data[key] = unicode(value)
+        self._queue.append(("add", {'docs': [data, ]}))
+
+    def commit(self, waitFlush=True, waitSearcher=True, optimize=False):
+        # TODO: waitFlush, waitSearcher, optimize
+        return self.flush()
+
+    def doCmd(self, cmd, **kwargs):
+        # TODO: check return values
+
+        return getattr(self.conn, cmd)(**kwargs)
+
+    def flush(self):
+        """ send out the stored requests to solr """
+        responses = []
+        for cmd, kwargs in self._queue:
+            responses.append(self.doCmd(cmd, **kwargs))
+        responses.append(self.doCmd('commit'))
+        del self._queue[:]
+        return responses
+
+    def abort(self):
+        logger.debug("abort solr queue: %r", self._queue)
+        del self._queue[:]
+
+    def search(self, **params):
+        logger.debug('sending request: %r', params)
+        return SolrResponseWrapper(self.conn.search(**params))
+
+'''
+
+-- OBSOLETED --
+
 # http://svn.apache.org/repos/asf/lucene/solr/trunk/client/python/solr.py
 
 # Licensed to the Apache Software Foundation (ASF) under one or more
@@ -298,3 +589,4 @@ class SolrConnection:
                 return SolrSchema(xml.strip())
             self.__reconnect()          # force a new connection for each url
         self.__errcheck(response)       # raise a solrexception
+'''

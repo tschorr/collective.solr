@@ -7,7 +7,7 @@ from collective.solr.manager import SolrConnectionConfig
 from collective.solr.manager import SolrConnectionManager
 from collective.solr.queryparser import quote
 from collective.solr.search import Search
-from collective.solr.tests.utils import fakehttp
+from collective.solr.tests.utils import fakehttp    # TODO: use solr api mockup
 from collective.solr.tests.utils import getData
 from unittest import TestCase
 from zope.component import provideUtility
@@ -328,7 +328,6 @@ class InactiveQueryTests(TestCase):
         search.manager = SolrConnectionManager()
         self.assertEqual(search.buildQueryAndParameters('foo'), ({}, {}))
         self.assertEqual(search.buildQueryAndParameters(name='foo'), ({}, {}))
-
 
 class SearchTests(TestCase):
 

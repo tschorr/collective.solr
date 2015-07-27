@@ -185,7 +185,7 @@ class SolrIndexProcessor(object):
                 msg = 'unable to fetch schema, skipping indexing of %r'
                 logger.warning(msg, obj)
                 return
-            uniqueKey = schema.get('uniqueKey', None)
+            uniqueKey = schema.uniqueKey
             if uniqueKey is None:
                 msg = 'schema is missing unique key, skipping indexing of %r'
                 logger.warning(msg, obj)
@@ -228,7 +228,7 @@ class SolrIndexProcessor(object):
                 msg = 'unable to fetch schema, skipping unindexing of %r'
                 logger.warning(msg, obj)
                 return
-            uniqueKey = schema.get('uniqueKey', None)
+            uniqueKey = schema.uniqueKey
             if uniqueKey is None:
                 msg = 'schema is missing unique key, skipping unindexing of %r'
                 logger.warning(msg, obj)

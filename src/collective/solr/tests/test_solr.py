@@ -4,6 +4,8 @@ from collective.solr.solr import SolrConnection
 from collective.solr.tests.utils import getData, fakehttp
 
 
+# TODO: use solr api mockup
+
 class TestSolr(TestCase):
 
     def test_add(self):
