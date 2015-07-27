@@ -1,3 +1,4 @@
+import json
 from os.path import dirname, join
 from httplib import HTTPConnection
 from threading import Thread
@@ -69,7 +70,8 @@ def fakesolrinterface(solrconn, schema=None, fakedata=[]):
     return output
 
 
-# OBSOLETED
+# OBSOLETED BY fakesolrinterface
+'''
 def fakehttp(solrconn, *fakedata):
     """ helper function to set up a fake http request on a SolrConnection """
 
@@ -142,6 +144,7 @@ def fakehttp(solrconn, *fakedata):
 
     solrconn.conn = FakeHTTPConnection(solrconn.conn.host, *fakedata)
     return output
+'''
 
 
 def fakemore(solrconn, *fakedata):
