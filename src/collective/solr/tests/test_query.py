@@ -7,7 +7,7 @@ from collective.solr.manager import SolrConnectionConfig
 from collective.solr.manager import SolrConnectionManager
 from collective.solr.queryparser import quote
 from collective.solr.search import Search
-from collective.solr.tests.utils import fakehttp    # TODO: use solr api mockup
+from collective.solr.tests.utils import fakesolrinterface
 from collective.solr.tests.utils import getData
 from unittest import TestCase
 from zope.component import provideUtility
@@ -177,7 +177,7 @@ class QueryTests(TestCase):
         self.mngr = SolrConnectionManager()
         self.mngr.setHost(active=True)
         conn = self.mngr.getConnection()
-        fakehttp(conn, getData('schema.xml'))   # fake schema response
+        fakesolrinterface(conn, schema=getData('schema.json'))
         self.mngr.getSchema()                   # read and cache the schema
         self.search = Search()
         self.search.manager = self.mngr
@@ -329,6 +329,7 @@ class InactiveQueryTests(TestCase):
         self.assertEqual(search.buildQueryAndParameters('foo'), ({}, {}))
         self.assertEqual(search.buildQueryAndParameters(name='foo'), ({}, {}))
 
+
 class SearchTests(TestCase):
 
     def setUp(self):
@@ -344,20 +345,22 @@ class SearchTests(TestCase):
         self.mngr.setHost(active=False)
 
     def testSimpleSearch(self):
-        schema = getData('schema.xml')
-        search = getData('search_response.txt')
-        request = getData('search_request.txt')
-        output = fakehttp(self.conn, schema, search)    # fake responses
+        schema = getData('schema.json')
+        search = getData('search_response.json')
+        # request = getData('search_request.txt')
+        # output =
+        fakesolrinterface(self.conn, schema=schema, fakedata=[search])
         query, ignore = self.search.buildQueryAndParameters(id='[* TO *]')
-        results = self.search(query, rows=10, wt='xml', indent='on').results()
-        normalize = lambda x: sorted(x.split('&'))      # sort request params
-        self.assertEqual(normalize(output.get(skip=1)), normalize(request))
-        self.assertEqual(results.numFound, '1')
+        results = self.search(query, rows=10, wt='json', indent='on').results()
+        # normalize = lambda x: sorted(x.split('&'))      # sort request params
+        # self.assertEqual(normalize(output.get(skip=1)), normalize(request))
+        self.assertEqual(results.numFound, 1)
         self.assertEqual(len(results), 1)
         match = results[0]
         self.assertEqual(match.id, '500')
         self.assertEqual(match.name, 'python test doc')
         self.assertEqual(match.popularity, 0)
         self.assertEqual(match.sku, '500')
-        self.assertEqual(match.timestamp.ISO8601(),
+        # BBB: we need DateTime ????
+        self.assertEqual(DateTime(match.timestamp).ISO8601(),
                          DateTime('2008-02-29 16:11:46.998 GMT').ISO8601())

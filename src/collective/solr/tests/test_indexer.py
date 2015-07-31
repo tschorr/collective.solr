@@ -98,10 +98,10 @@ class QueueIndexerTests(TestCase):
         self.proc.index(Foo(id='500', name='python test doc'))
         # committing sends data
         self.proc.commit()
-        self.assertEqual(output[0][0], 'add')
-        self.assertEqual(output[0][1],
-                         [{'boost_values': None, u'name': u'python test doc',
-                           u'id': u'500'}])
+        self.assertEqual(output[0].count('"add":'), 1)
+        self.assertEqual(output[0].count('"name": "python test doc"'), 1)
+        self.assertEqual(output[0].count('"id": "500"'), 1)
+        # self.assertEqual(sortFields(str(output)), getData('add_request.txt'))
 
     def testIndexAccessorRaises(self):
         response = getData('add_response.txt')
@@ -118,10 +118,9 @@ class QueueIndexerTests(TestCase):
                             text=brokenfunc))   # indexing sends data
         # committing sends data
         self.proc.commit()
-        self.assertEqual(output[0][0], 'add')
-        self.assertEqual(output[0][1],
-                         [{'boost_values': None, u'name': u'python test doc',
-                           u'id': u'500'}])
+        self.assertEqual(output[0].count('"add":'), 1)
+        self.assertEqual(output[0].count('"name": "python test doc"'), 1)
+        self.assertEqual(output[0].count('"id": "500"'), 1)
         # self.assertEqual(sortFields(str(output)), getData('add_request.txt'))
 
     def testPartialIndexObject(self):
@@ -136,10 +135,8 @@ class QueueIndexerTests(TestCase):
         self.proc.index(foo)
         # committing sends data
         self.proc.commit()
-        self.assertEqual(output[0][0], 'add')
-        # self.assert_(str(output).find(
-        #    '<field name="price">42.0</field>') > 0, '"price" data not found')
-        self.assertEqual(output[0][1][0]['price'], 42.0)
+        self.assert_(str(output).find(
+            '"price": 42.0') > 0, '"price" data not found')
         # then only a subset...
         response = getData('add_response.txt')
         output = fakesolrinterface(
@@ -150,18 +147,16 @@ class QueueIndexerTests(TestCase):
         self.proc.index(foo, attributes=['id', 'name'])
         # committing sends data
         self.proc.commit()
-        self.assertEqual(output[0][1][0]['name'], 'foo')
-        # output = str(output)
-        # self.assert_(
-        #    output.find('<field name="name">foo</field>') > 0,
-        #    '"name" data not found'
-        # )
+        output = str(output)
+        self.assert_(
+            output.find('"name": "foo"') > 0,
+            '"name" data not found'
+        )
         # at this point we'd normally check for a partial update:
         #   self.assertEqual(output.find('price'), -1, '"price" data found?')
         #   self.assertEqual(output.find('42'), -1, '"price" data found?')
         # however, until SOLR-139 has been implemented (re)index operations
         # always need to provide data for all attributes in the schema...
-        # self.assertFalse('price' in output[0][1][0], '"price" data found')
 
     def testDateIndexing(self):
         foo = Foo(id='zeidler', name='andi', cat='nerd',
@@ -176,12 +171,9 @@ class QueueIndexerTests(TestCase):
         self.proc.index(foo)
         # committing sends data
         self.proc.commit()
-        self.assertEqual(output[0][0], 'add')
-        self.assertEqual(len(output[0][1]), 1)
-        self.assertEqual(output[0][1][0]['timestamp'],
-                         '1972-05-11T03:45:00.000Z')
-        # required = '<field name="timestamp">1972-05-11T03:45:00.000Z</field>'
-        # self.assert_(str(output).find(required) > 0, '"date" data not found')
+        self.assertEqual(str(output).count('"add":'), 1)
+        required = '"timestamp": "1972-05-11T03:45:00.000Z"'
+        self.assert_(str(output).find(required) > 0, '"date" data not found')
 
     def testDateIndexingWithPythonDateTime(self):
         foo = Foo(id='gerken', name='patrick', cat='nerd',
@@ -196,12 +188,9 @@ class QueueIndexerTests(TestCase):
         self.proc.index(foo)
         # committing sends data
         self.proc.commit()
-        self.assertEqual(output[0][0], 'add')
-        self.assertEqual(len(output[0][1]), 1)
-        self.assertEqual(output[0][1][0]['timestamp'],
-                         '1980-09-29T14:02:00.000Z')
-        # required = '<field name="timestamp">1980-09-29T14:02:00.000Z</field>'
-        # self.assert_(str(output).find(required) > 0, '"date" data not found')
+        self.assertEqual(str(output).count('"add":'), 1)
+        required = '"timestamp": "1980-09-29T14:02:00.000Z"'
+        self.assert_(str(output).find(required) > 0, '"date" data not found')
 
     def testDateIndexingWithPythonDate(self):
         foo = Foo(id='brand', name='jan-carel',
@@ -216,12 +205,9 @@ class QueueIndexerTests(TestCase):
         self.proc.index(foo)
         # committing sends data
         self.proc.commit()
-        self.assertEqual(output[0][0], 'add')
-        self.assertEqual(len(output[0][1]), 1)
-        self.assertEqual(output[0][1][0]['timestamp'],
-                         '1982-08-05T00:00:00.000Z')
-        # required = '<field name="timestamp">1982-08-05T00:00:00.000Z</field>'
-        # self.assert_(str(output).find(required) > 0, '"date" data not found')
+        self.assertEqual(str(output).count('"add":'), 1)
+        required = '"timestamp": "1982-08-05T00:00:00.000Z"'
+        self.assert_(str(output).find(required) > 0, '"date" data not found')
 
     def testReindexObject(self):
         response = getData('add_response.txt')
@@ -235,9 +221,8 @@ class QueueIndexerTests(TestCase):
         self.proc.reindex(Foo(id='500', name='python test doc'))
         # committing sends data
         self.proc.commit()
-        self.assertEqual(output, [
-            ('add', [{'boost_values': None, u'name': u'python test doc',
-                      u'id': u'500'}]), ('commit', None)])
+        self.assertEqual(output[0].count('"name": "python test doc"'), 1)
+        self.assertEqual(output[0].count('"id": "500"'), 1)
 
     def testUnindexObject(self):
         response = getData('delete_response.txt')
@@ -251,8 +236,7 @@ class QueueIndexerTests(TestCase):
         self.proc.unindex(Foo(id='500', name='python test doc'))
         # committing sends data
         self.proc.commit()
-        self.assertEqual(output, [
-            ('delete_by_ids', ['500']), ('commit', None)])
+        self.assertEqual(output, ['{"delete": {"id": "500"},"commit": {}}'])
 
     def testCommit(self):
         response = getData('commit_response.txt')
@@ -266,7 +250,7 @@ class QueueIndexerTests(TestCase):
         self.proc.commit()
         # self.assertEqual(str(output), getData('commit_request.txt'))
         self.assertEqual(len(output), 1)
-        self.assertEqual(output[0], ('commit', None))
+        self.assertEqual(output[0], '{"commit": {}}')
 
     def testNoIndexingWithoutAllRequiredFields(self):
         response = getData('dummy_response.txt')
@@ -280,7 +264,7 @@ class QueueIndexerTests(TestCase):
         self.assertEqual(output, [])
         # committing sends data
         self.proc.commit()
-        self.assertEqual(output, [('commit', None)])
+        self.assertEqual(output, ['{"commit": {}}'])
 
     def testIndexerMethods(self):
         class Bar(Foo):
@@ -301,15 +285,13 @@ class QueueIndexerTests(TestCase):
         self.proc.index(foo)
         # committing sends data
         self.proc.commit()
-        self.assertEqual(output[0][0], 'add')
-        self.assertTrue('cat' in output[0][1][0], '"cat" data not found')
-        self.assertFalse('price' in output[0][1][0], '"price" data found')
-        # output = str(output)
-        # self.assertTrue(
-        #    output.find('<field name="cat">nerd</field>') > 0,
-        #    '"cat" data not found'
-        # )
-        # self.assertEqual(output.find('price'), -1, '"price" data found?')
+        self.assertEqual(output[0].count('"add":'), 1)
+        output = str(output)
+        self.assertTrue(
+            output.find('"cat": "nerd"') > 0,
+            '"cat" data not found'
+        )
+        self.assertEqual(output.find('price'), -1, '"price" data found?')
 
 
 class RobustnessTests(TestCase):
@@ -409,7 +391,7 @@ class FakeHTTPConnectionTests(TestCase):
         # BBB: closeConnection don't flush queue ...
         # self.assertEqual(len(output), 2)
         # self.failUnless(output.get().startswith(self.schema_request))
-        # self.assertEqual(sortFields(output.get()), getData('add_request.txt'))
+        # self.assertEqual(sortFields(output.get()),getData('add_request.txt'))
 
     def testThreeRequests(self):
         mngr = SolrConnectionManager(active=True)
@@ -431,7 +413,7 @@ class FakeHTTPConnectionTests(TestCase):
         # BBB: closeConnection don't flush queue ...
         # self.assertEqual(len(output), 3)
         # self.failUnless(output.get().startswith(self.schema_request))
-        # self.assertEqual(sortFields(output.get()), getData('add_request.txt'))
+        # self.assertEqual(sortFields(output.get()),getData('add_request.txt'))
         # self.assertEqual(output.get(), getData('delete_request.txt'))
 
     def testFourRequests(self):
@@ -451,16 +433,15 @@ class FakeHTTPConnectionTests(TestCase):
         proc.unindex(self.foo)
         proc.commit()
         mngr.closeConnection()
-        self.assertEqual(len(output), 4)
+        self.assertEqual(len(output), 2)
         # self.failUnless(output.get().startswith(self.schema_request))
         self.assertEqual(output[0][0], 'schema')
-        self.assertEqual(output[1][0], 'add')
-        self.assertEqual(len(output[1][1]), 1)
-        self.assertEqual(output[1][1][0]['boost_values'], None)
-        self.assertEqual(output[1][1][0]['name'], u'python test doc')
-        self.assertEqual(output[1][1][0]['id'], u'500')
-        self.assertEqual(output[2], ('delete_by_ids', ['500']))
-        self.assertEqual(output[3], ('commit', None))
+        self.assertTrue(output[1].startswith('{"add": {"doc":'))
+        self.assertEqual(output[1].count('{"add": {"doc":'), 1)
+        self.assertEqual(output[1].count('"name": "python test doc"'), 1)
+        self.assertEqual(output[1].count('"id": "500"'), 2)  # add + delete
+        self.assertEqual(output[1].count('"delete": {"id": "500"}'), 1)
+        self.assertTrue(output[1].endswith('"commit": {}}'))
 
     def testExtraRequest(self):
         # basically the same as `testThreeRequests`, except it
@@ -480,7 +461,7 @@ class FakeHTTPConnectionTests(TestCase):
 
         # self.assertEqual(len(output), 3)
         # self.failUnless(output.get().startswith(self.schema_request))
-        # self.assertEqual(sortFields(output.get()), getData('add_request.txt'))
+        # self.assertEqual(sortFields(output.get()),getData('add_request.txt'))
         # self.assertEqual(output.get(), getData('delete_request.txt'))
 
 
@@ -526,9 +507,8 @@ class ThreadedConnectionTests(TestCase):
         mngr.setHost(active=False)
         self.assertEqual(len(log), 3)
         # self.assertEqual(sortFields(log[0]), getData('add_request.txt'))
-        self.assertEqual(log[0], [
-            ('add', [{'boost_values': None, u'name': u'python test doc',
-                      u'id': u'500'}]), ('commit', None)])
+        self.assertEqual(log[0][0].count('"name": "python test doc"'), 1)
+        self.assertEqual(log[0][0].count('"id": "500"'), 1)
         self.failUnless(isinstance(log[1], SolrIndexProcessor))
         self.failUnless(isinstance(log[2], SolrConnection))
         self.failUnless(isinstance(proc, SolrIndexProcessor))

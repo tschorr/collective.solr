@@ -11,8 +11,8 @@ from collective.solr.browser.facets import SearchFacetsView
 from collective.solr.interfaces import IFacetTitleVocabularyFactory
 from collective.solr.interfaces import ISolrConnectionConfig
 from collective.solr.manager import SolrConnectionConfig
-from collective.solr.parser import SolrResponse
-from collective.solr.tests.utils import getData
+# from collective.solr.parser import SolrResponse
+# from collective.solr.tests.utils import getData
 
 
 class Dummy(object):
@@ -76,8 +76,8 @@ class FacettingHelperTest(TestCase, cleanup.CleanUp):
             name='capsFacet')
 
     def testConvertFacets(self):
-        fields = dict(portal_type=dict(Document=10,
-                                       Folder=3, Event=5, Topic=2))
+        fields = dict(portal_type=[
+            ('Document', 10), ('Folder', 3), ('Event', 5), ('Topic', 2)])
         view = DummyView(context=Dummy(), request=TestRequest())
         info = convertFacets(fields, view=view)
         # the info should consist of 1 dict with
@@ -97,8 +97,11 @@ class FacettingHelperTest(TestCase, cleanup.CleanUp):
              ('Topic', 'Title of Topic', 2)])
 
     def testConvertFacetResponse(self):
-        response = SolrResponse(getData('facet_xml_response.txt'))
-        fields = response.facet_counts['facet_fields']
+        # response = SolrResponse(getData('facet_xml_response.txt'))
+        # fields = response.facet_counts['facet_fields']
+        fields = {'inStock': [('true', 1)],
+                  'cat': [('search', 1), ('electronics', 0), ('monitor', 0),
+                          ('software', 1)]}
         view = DummyView(request=TestRequest())
         info = convertFacets(fields, view=view)
         # the info should consist of 2 dicts with
@@ -182,7 +185,8 @@ class FacettingHelperTest(TestCase, cleanup.CleanUp):
         """
         context = Dummy(facet_fields=['capsFacet'])
         request = TestRequest(form=dict(foo='bar'))
-        fields = dict(capsFacet=dict(one=10, two=3, leavelowercase=5))
+        fields = dict(capsFacet=[('one', 10), ('two', 3),
+                                 ('leavelowercase', 5)])
         view = DummyView(context=context, request=request)
         info = convertFacets(fields, view)
         self.assertEqual(len(info), 1)
@@ -195,7 +199,8 @@ class FacettingHelperTest(TestCase, cleanup.CleanUp):
     def testFacetLinks(self):
         context = Dummy(facet_fields=['portal_type'])
         request = TestRequest(form=dict(foo='bar'))
-        fields = dict(portal_type=dict(Document=10, Folder=3, Event=5))
+        fields = dict(portal_type=[('Document', 10), ('Folder', 3),
+                                   ('Event', 5)])
         view = DummyView(context=context, request=request)
         info = convertFacets(fields, view)
         # let's check queries for the one and only facet field
@@ -216,7 +221,7 @@ class FacettingHelperTest(TestCase, cleanup.CleanUp):
     def testFacetLinksWithSelectedFacet(self):
         context = Dummy()
         request = TestRequest(form={'foo': 'bar', 'facet.field': 'bar'})
-        fields = dict(foo=dict(private=2, published=4))
+        fields = dict(foo=[('private', 2), ('published', 4)])
         view = DummyView(context=context, request=request)
         info = convertFacets(fields, view)
         self.assertEqual(len(info), 1)
@@ -233,8 +238,8 @@ class FacettingHelperTest(TestCase, cleanup.CleanUp):
     def testFacetLinksWithMultipleFacets(self):
         context = Dummy()
         request = TestRequest(form={'facet.field': ['foo', 'bar']})
-        fields = dict(foo=dict(Document=10, Folder=3, Event=5),
-                      bar=dict(private=2, published=4))
+        fields = dict(foo=[('Document', 10), ('Folder', 3), ('Event', 5)],
+                      bar=[('private', 2), ('published', 4)])
         view = DummyView(context=context, request=request)
         info = convertFacets(fields, view)
         self.assertEqual(len(info), 2)
@@ -259,7 +264,7 @@ class FacettingHelperTest(TestCase, cleanup.CleanUp):
     def testFacetLinksWithMultipleSelectedFacets(self):
         context = Dummy()
         request = TestRequest(form={'facet.field': 'foo', 'fq': 'bar:private'})
-        fields = dict(foo=dict(Document=3, Folder=2))
+        fields = dict(foo=[('Document', 3), ('Folder', 2)])
         view = DummyView(context=context, request=request)
         info = convertFacets(fields, view)
         self.assertEqual(len(info), 1)
@@ -338,8 +343,8 @@ class FacettingHelperTest(TestCase, cleanup.CleanUp):
         self.assertEqual(info, [])
 
     def testEmptyFacetFieldWithZeroCounts(self):
-        fields = dict(foo={'foo': 0, 'bar': 0})
-        results = Dummy(facet_counts=dict(facet_fields=fields))
+        fields = dict(foo=[('foo', 0), ('bar', 0)])
+        results = Dummy(facet_counts=Dummy(facet_fields=fields))
         view = SearchFacetsView(Dummy(), TestRequest())
         view.kw = dict(results=results)
         self.assertEqual(view.facets(), [])
@@ -347,7 +352,7 @@ class FacettingHelperTest(TestCase, cleanup.CleanUp):
     def testFacetFieldFilter(self):
         context = Dummy()
         request = TestRequest(form={'facet.field': 'foo'})
-        fields = dict(foo={'foo': 2, 'bar': 4, '': 6, 'nil': 0})
+        fields = dict(foo=[('foo', 2), ('bar', 4), ('', 6), ('nil', 0)])
         # without a filter all values are included
         view = DummyView(context=context, request=request)
         info = convertFacets(fields, view)

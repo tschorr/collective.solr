@@ -1,6 +1,7 @@
 {
     "uniqueKey": "id",
     "name": "example",
+    "defaultSearchField": "text",
     "solrQueryParser": {
         "defaultOperator": "OR"
     },
@@ -44,6 +45,12 @@
             "stored": true
         },
         {
+            "name": "inStock",
+            "type": "boolean",
+            "indexed": true,
+            "stored": true
+        },
+        {
             "name": "cat",
             "type": "text_ws",
             "indexed": true,
@@ -51,6 +58,13 @@
             "multiValued": true,
             "omitNorms": true,
             "termVectors": true
+        },
+        {
+            "name": "text",
+            "type": "text",
+            "indexed": true,
+            "stored": false,
+            "multiValued": true
         },
         {
             "termPositions": false,
@@ -614,6 +628,5 @@
             "dest": "default",
             "source": "Title"
         }
-    ],
-    "defaultSearchField": "default"
+    ]
 }

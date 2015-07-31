@@ -10,6 +10,7 @@ from collective.solr.utils import padResults
 from collective.solr.utils import prepareData
 from collective.solr.utils import setupTranslationMap
 from collective.solr.utils import splitSimpleSearch
+import scorched
 from unittest import TestCase
 
 
@@ -158,13 +159,14 @@ class TranslationTests(TestCase):
 class BatchingHelperTests(TestCase):
 
     def results(self):
-        xml_response = getData('quirky_response.txt')
-        response = SolrResponse(xml_response)
-        return response.response        # the result set is named 'response'
+        json_response = getData('quirky_response.json')
+        response = SolrResponse(
+            scorched.response.SolrResponse.from_json(json_response))
+        return response.results()
 
     def testResult(self):
         results = self.results()
-        self.assertEqual(results.numFound, '1204')
+        self.assertEqual(results.numFound, 1204)
         self.assertEqual(len(results), 137)
         self.assertEqual(results[0].UID, '7c31adb20d5eee314233abfe48515cf3')
 

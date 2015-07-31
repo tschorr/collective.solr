@@ -1,0 +1,22 @@
+{
+  "responseHeader":{
+    "status":0,
+    "QTime":0,
+    "params":{
+      "q":"[* TO *]",
+      "rows":"10",
+      "indent":"true",
+      "wt":"json"
+    }
+  },
+  "response":{"numFound":1,"start":0,"docs":[
+      {
+        "id":"500",
+        "name":"python test doc",
+        "popularity":0,
+        "sku":"500",
+        "timestamp":"2008-02-29T16:11:46.998Z"
+      }
+    ]
+  }
+}

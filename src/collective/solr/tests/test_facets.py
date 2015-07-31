@@ -48,7 +48,7 @@ class SolrFacettingTests(TestCase):
             sorted([r.path_string for r in results]),
             ['/plone/event1', '/plone/front-page']
         )
-        types = results.facet_counts['facet_fields']['portal_type']
+        types = dict(results.facet_counts.facet_fields['portal_type'])
         self.assertEqual(types['Document'], 1)
         self.assertEqual(types['Event'], 1)
 
@@ -62,8 +62,8 @@ class SolrFacettingTests(TestCase):
             sorted([r.path_string for r in results]),
             ['/plone/news', '/plone/news/aggregator']
         )
-        states = results.facet_counts['facet_fields']['review_state']
-        self.assertEqual(states, dict(private=0, published=2))
+        states = results.facet_counts.facet_fields['review_state']
+        self.assertEqual(dict(states), dict(private=0, published=2))
 
     def testMultiFacettedSearch(self):
         setRoles(self.portal, TEST_USER_ID, ['Manager'])
@@ -78,9 +78,9 @@ class SolrFacettingTests(TestCase):
             sorted([r.path_string for r in results]),
             ['/plone/event1', '/plone/front-page']
         )
-        facets = results.facet_counts['facet_fields']
-        self.assertEqual(facets['portal_type']['Event'], 1)
-        self.assertEqual(facets['review_state']['published'], 1)
+        facets = results.facet_counts.facet_fields
+        self.assertEqual(dict(facets['portal_type'])['Event'], 1)
+        self.assertEqual(dict(facets['review_state'])['published'], 1)
 
     def testFacettedSearchWithFilterQuery(self):
         request = self.app.REQUEST
@@ -93,8 +93,8 @@ class SolrFacettingTests(TestCase):
             [r.path_string for r in results],
             ['/plone/news/aggregator']
         )
-        states = results.facet_counts['facet_fields']['review_state']
-        self.assertEqual(states, dict(private=0, published=1))
+        states = results.facet_counts.facet_fields['review_state']
+        self.assertEqual(dict(states), dict(private=0, published=1))
 
     def testFacettedSearchWithDependencies(self):
         # facets depending on others should not show up initially
@@ -244,7 +244,6 @@ class SolrFacettingTests(TestCase):
         )
         # let's also try the other way round...
         request.form['facet_field'] = ['review_state', 'portal_type']
-        results = solrSearchResults(request)
         output = view(results=results)
         self.checkOrder(
             output,

@@ -1,0 +1,101 @@
+{
+    "name": "example",
+    "uniqueKey": "UID",
+    "fields": [
+        {
+            "name": "id",
+            "type": "string",
+            "indexed": true,
+            "stored": true,
+            "required": true
+        },
+        {
+            "name": "UID",
+            "type": "string",
+            "indexed": true,
+            "stored": true,
+            "required": true
+        },
+        {
+            "name": "Title",
+            "type": "string",
+            "indexed": true,
+            "stored": true
+        },
+        {
+            "name": "default",
+            "type": "text",
+            "indexed": true,
+            "stored": false,
+            "required": false,
+            "multiValued": true,
+            "omitNorms": true
+        },
+        {
+            "name": "SearchableText",
+            "type": "text",
+            "indexed": true,
+            "stored": false
+        },
+        {
+            "name": "Subject",
+            "type": "string",
+            "indexed": true,
+            "stored": true,
+            "multiValued": true
+        },
+        {
+            "name": "path_string",
+            "type": "string",
+            "indexed": false,
+            "stored": true
+        },
+        {
+            "name": "path_depth",
+            "type": "string",
+            "indexed": true,
+            "stored": false
+        },
+        {
+            "name": "path_parents",
+            "type": "string",
+            "indexed": false,
+            "stored": true,
+            "multiValued": true
+        },
+        {
+            "name": "review_state",
+            "type": "string",
+            "indexed": true,
+            "stored": true
+        }
+    ],
+    "fieldTypes": [
+        {
+            "name": "string",
+            "class": "solr.StrField",
+            "sortMissingLast": true,
+            "omitNorms": true
+        },
+        {
+            "name": "integer",
+            "class": "solr.IntField",
+            "omitNorms": true
+        },
+        {
+            "name": "text",
+            "class": "solr.TextField",
+            "positionIncrementGap": "100"
+        }
+    ],
+    "copyFields": [
+        {
+            "dest": "default",
+            "source": "Description"
+        },
+        {
+            "dest": "default",
+            "source": "Title"
+        }
+    ]
+}

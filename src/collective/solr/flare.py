@@ -34,7 +34,7 @@ class PloneFlare(AttrDict):
 
     def getPath(self):
         """ convenience alias """
-        return self['path_string']
+        return str(self['path_string'])
 
     def getRID(self):
         """Return a record id"""

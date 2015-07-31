@@ -3,11 +3,11 @@ from os.path import dirname, join
 from httplib import HTTPConnection
 from threading import Thread
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
-from StringIO import StringIO
 from socket import error
 from sys import stderr
 from re import search
-
+from scorched.response import SolrResponse
+from scorched import SolrInterface
 from collective.solr.local import getLocal, setLocal
 from collective.solr import tests
 
@@ -35,14 +35,14 @@ def loadZCMLString(string):
 def getData(filename):
     """ return a file object from the test data folder """
     filename = join(dirname(tests.__file__), 'data', filename)
-    return open(filename, 'r').read()
+    return open(filename, 'r').read().strip()
 
 
 def fakesolrinterface(solrconn, schema=None, fakedata=[]):
     """ helper function to set up a fake solr api on a SolrConnection """
     output = []
 
-    class FakeHTTPSolrInterface:
+    class FakeHTTPSolrInterface(SolrInterface):
         _schema = None
 
         def __init__(self, fakedata=[]):
@@ -51,16 +51,34 @@ def fakesolrinterface(solrconn, schema=None, fakedata=[]):
         @property
         def schema(self):
             output.append(('schema', self._schema))
+            # self.fakedata.pop(0)
             return self._schema
 
-        def add(self, docs):
-            output.append(('add', docs))
+        def update(self, update_doc, **kwargs):
+            output.append(update_doc)
 
-        def delete_by_ids(self, ids):
-            output.append(('delete_by_ids', ids))
+        # def add(self, docs):
+        #     output.append(('add', docs))
+        #     # self.fakedata.pop(0)
+        #
+        # def delete_by_ids(self, ids):
+        #     output.append(('delete_by_ids', ids))
+        #     # self.fakedata.pop(0)
+        #
+        # def commit(self, **kwargs):
+        #     output.append(('commit', kwargs or None))
+        #     # self.fakedata.pop(0)
 
-        def commit(self):
-            output.append(('commit', None))
+        def search(self, *args, **kwargs):
+            output.append(('search', (args, kwargs)))
+            if self.schema:
+                datefields = tuple(self._extract_datefields(self.schema))
+            else:
+                datefields = tuple()
+            return SolrResponse.from_json(
+                self.fakedata.pop(0),
+                datefields=datefields
+            )
 
     solrconn.conn = FakeHTTPSolrInterface(fakedata)
     if schema:

@@ -8,7 +8,6 @@ from collective.solr.mangler import cleanupQueryParameters
 from collective.solr.mangler import mangleQuery
 from collective.solr.mangler import optimizeQueryParameters
 from collective.solr.mangler import subtractQueryParameters
-# from collective.solr.parser import SolrResponse # TODO: SolrResponse obsoleted
 from collective.solr.queryparser import quote
 from collective.solr.utils import isWildCard
 from collective.solr.utils import prepareData

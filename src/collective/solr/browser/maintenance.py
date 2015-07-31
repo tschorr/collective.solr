@@ -16,9 +16,9 @@ from collective.solr.interfaces import ISolrAddHandler
 from collective.solr.interfaces import ICheckIndexable
 from collective.solr.indexer import SolrIndexProcessor
 from collective.solr.indexer import boost_values
-from collective.solr.parser import parse_date_as_datetime
+# from collective.solr.parser import parse_date_as_datetime
 from collective.solr.parser import SolrResponse
-from collective.solr.parser import unmarshallers
+# from collective.solr.parser import unmarshallers
 from collective.solr.utils import findObjects
 from collective.solr.utils import prepareData
 
@@ -200,12 +200,13 @@ class SolrMaintenanceView(BrowserView):
             rows=MAX_ROWS,
             fl='%s modified' % key)
         # avoid creating DateTime instances
-        simple_unmarshallers = unmarshallers.copy()
-        simple_unmarshallers['date'] = parse_date_as_datetime
-        flares = SolrResponse(response, simple_unmarshallers)
-        response.close()
+        # simple_unmarshallers = unmarshallers.copy()
+        # simple_unmarshallers['date'] = parse_date_as_datetime
+        # flares = SolrResponse(response, simple_unmarshallers)
+        # response.close()
         solr_results = {}
         solr_uids = set()
+        flares = response.results()
 
         def _utc_convert(value):
             t_tup = value.utctimetuple()

@@ -68,11 +68,11 @@ def convertFacets(fields, view, filter=None):
             vfactory = getUtility(IFacetTitleVocabularyFactory)
         vocabulary = vfactory(view.context)
 
-        sorted_values = sorted(values.items(), key=itemgetter(1), reverse=True)
+        sorted_values = sorted(values, key=itemgetter(1), reverse=True)
         for name, count in sorted_values:
             p = deepcopy(params)
             p.setdefault('fq', []).append(
-                '%s:"%s"' % (field, name.encode('utf-8')))
+                '%s:"%s"' % (field.encode('utf-8'), name.encode('utf-8')))
             if field in p.get('facet.field', []):
                 p['facet.field'].remove(field)
             if filter is None or filter(name, count):
@@ -135,8 +135,9 @@ class SearchFacetsView(BrowserView, FacetMixin):
         results = self.kw.get('results', None)
         fcs = getattr(results, 'facet_counts', None)
         if results is not None and fcs is not None:
+            # BBB: facet.mincount do the same (?)
             filter = lambda name, count: name and count > 0
-            return convertFacets(fcs.get('facet_fields', {}), self, filter)
+            return convertFacets(fcs.facet_fields, self, filter)
         else:
             return None
 

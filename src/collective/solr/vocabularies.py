@@ -22,7 +22,7 @@ class SolrIndexes(object):
             schema = manager.getSchema()
             if schema is not None:
                 for name, info in sorted(schema.items()):
-                    if 'indexed' in info and info.get('indexed', False):
+                    if info.indexed:
                         items.append(name)
         if not items:
             config = queryUtility(ISolrConnectionConfig)
