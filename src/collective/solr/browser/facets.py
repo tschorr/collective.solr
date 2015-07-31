@@ -92,11 +92,12 @@ def convertFacets(fields, view, filter=None):
         deps = dependencies.get(field, None)
         visible = deps is None or selected.intersection(deps)
         if counts and visible:
-            info.append(dict(title=field, counts=counts, name=name))
+            # FIXME: difference between title and name ?
+            info.append(dict(title=field, counts=counts, name=field))
     if facets:  # sort according to given facets (if available)
         def pos(item):
             try:
-                return facets.index(item)
+                return facets.index(item['name'])
             except ValueError:
                 return len(facets)      # position the item at the end
         sortkey = pos

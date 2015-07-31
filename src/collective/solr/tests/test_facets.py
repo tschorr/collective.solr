@@ -243,6 +243,7 @@ class SolrFacettingTests(TestCase):
             'Review state'
         )
         # let's also try the other way round...
+        del(request.other['facet_field'])
         request.form['facet_field'] = ['review_state', 'portal_type']
         output = view(results=results)
         self.checkOrder(
