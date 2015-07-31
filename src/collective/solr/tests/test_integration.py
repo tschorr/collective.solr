@@ -194,7 +194,7 @@ class SiteSearchTests(TestCase):
     #     def slow(handler):          # set up another http response
     #         sleep(3)                # but wait longer before sending it
     #         handler.send_response(200, getData('search_response.txt'))
-    #     # We need a third handler, as the second one will timeout, which causes
+    #     # We need a third handler, as the second one will timeout, which causes  # NOQA
     #     # the SolrConnection.doPost method to catch it and try to reconnect.
     #     thread = fakeServer([quick, slow, slow], port=55555)
     #     search = queryUtility(ISearch)
@@ -208,7 +208,7 @@ class SiteSearchTests(TestCase):
     # def testSchemaUrlFallback(self):
     #     config = queryUtility(ISolrConnectionConfig)
     #     config.active = True
-    #     config.port = 55555        # random port so the real solr can still run
+    #     config.port = 55555        # random port so the real solr can still run  # NOQA
     #
     #     def notfound(handler):     # set up fake 404 response
     #         self.assertEqual(handler.path, '/solr/schema?wt=json')

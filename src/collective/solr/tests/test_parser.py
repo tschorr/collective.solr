@@ -83,7 +83,7 @@ class ParserTests(TestCase):
 #         self.assertEqual(headers['params']['facet.limit'], '-1')
 #         self.assertEqual(headers['params']['rows'], '0')
 #         self.assertEqual(headers['params']['facet'], 'true')
-#         self.assertEqual(headers['params']['facet.field'], ['cat', 'inStock'])
+#         self.assertEqual(headers['params']['facet.field'], ['cat', 'inStock'])  # NOQA
 #         self.assertEqual(headers['params']['indent'], '10')
 #         self.assertEqual(headers['params']['q'], 'solr')
 #         counts = response.facet_counts

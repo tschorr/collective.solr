@@ -39,7 +39,7 @@ class TestSolr(TestCase):
         c.add(boost_values=boost, id='500', name='python test doc')
         res = c.flush()
         self.assertEqual(res, None)  # TODO
-        # self.assertEqual(len(res), 2)   # two requests was sent (add + commit)
+        # self.assertEqual(len(res), 2)
         # res = res[0]
         self.failUnlessEqual(str(output), add_request)
 
