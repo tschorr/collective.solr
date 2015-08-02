@@ -1,0 +1,7 @@
+[["select",
+    [["fl", "* score"],
+     ["indent", "on"],
+     ["q", "+id:[* TO *]"],
+     ["rows", "10"],
+     ["wt", "json"]]
+]]

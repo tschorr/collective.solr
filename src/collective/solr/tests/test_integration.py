@@ -11,7 +11,7 @@ from collective.solr.interfaces import IZCMLSolrConnectionConfig
 from collective.solr.mangler import mangleQuery
 from collective.solr.testing import COLLECTIVE_SOLR_FUNCTIONAL_TESTING
 # from collective.solr.tests.utils import fakeServer
-from collective.solr.tests.utils import fakesolrinterface
+from collective.solr.tests.utils import fakesolrconnection
 from collective.solr.tests.utils import getData
 from plone.app.testing import TEST_USER_ID
 from plone.app.testing import setRoles
@@ -91,8 +91,8 @@ class IndexingTests(TestCase):
         self.proc = queryUtility(ISolrConnectionManager)
         self.proc.setHost(active=True)
         conn = self.proc.getConnection()
-        fakesolrinterface(conn, schema=getData('plone_schema.json'),
-                          fakedata=replies)     # fake schema response
+        fakesolrconnection(conn, schema=getData('plone_schema.json'),
+                           fakedata=replies)     # fake schema response
         self.proc.getSchema()                   # read and cache the schema
         self.portal = self.layer['portal']
         setRoles(self.portal, TEST_USER_ID, ['Manager'])
@@ -112,9 +112,9 @@ class IndexingTests(TestCase):
         output = []
         connection = self.proc.getConnection()
         responses = [getData('commit_response.txt')]
-        output = fakesolrinterface(connection,
-                                   schema=getData('plone_schema.json'),
-                                   fakedata=responses)
+        output = fakesolrconnection(connection,
+                                    schema=getData('plone_schema.json'),
+                                    fakedata=responses)
         self.folder.processForm(values={'title': 'Foo'})    # updating sends
         self.assertEqual(self.folder.Title(), 'Foo')
         self.assertEqual(len(output), 0, 'reindexed unqueued!')
@@ -130,7 +130,7 @@ class IndexingTests(TestCase):
         output = []
         connection = self.proc.getConnection()
         responses = [getData('dummy_response.txt')] * 42    # set up enough...
-        output = fakesolrinterface(connection, fakedata=responses)
+        output = fakesolrconnection(connection, fakedata=responses)
         ref = self.folder.addReference(self.portal.news, 'referencing')
         self.folder.processForm(values={'title': 'Foo'})
         commit()                        # indexing happens on commit

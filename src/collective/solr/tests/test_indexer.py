@@ -16,7 +16,7 @@ from collective.solr.indexer import SolrIndexProcessor
 from collective.solr.indexer import logger as logger_indexer
 from collective.solr.tests.utils import getData
 # from collective.solr.tests.utils import fakehttp
-from collective.solr.tests.utils import fakesolrinterface
+from collective.solr.tests.utils import fakesolrconnection
 from collective.solr.tests.utils import fakemore
 from collective.solr.solr import SolrConnection
 from collective.solr.utils import prepareData
@@ -51,7 +51,7 @@ class QueueIndexerTests(TestCase):
         self.mngr = SolrConnectionManager()
         self.mngr.setHost(active=True)
         conn = self.mngr.getConnection()
-        fakesolrinterface(conn, schema=getData('schema.json'))  # fake schema
+        fakesolrconnection(conn, schema=getData('schema.json'))  # fake schema
         self.mngr.getSchema()                       # read and cache the schema
         self.proc = SolrIndexProcessor(self.mngr)
 
@@ -89,7 +89,7 @@ class QueueIndexerTests(TestCase):
     def testIndexObject(self):
         response = getData('add_response.txt')
         # fake add response
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             self.mngr.getConnection(),
             schema=getData('schema.json'),
             fakedata=[response]
@@ -106,7 +106,7 @@ class QueueIndexerTests(TestCase):
     def testIndexAccessorRaises(self):
         response = getData('add_response.txt')
         # fake add response
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             self.mngr.getConnection(),
             schema=getData('schema.json'),
             fakedata=[response]
@@ -127,7 +127,7 @@ class QueueIndexerTests(TestCase):
         foo = Foo(id='500', name='foo', price=42.0)
         # first index all attributes...
         response = getData('add_response.txt')
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             self.mngr.getConnection(),
             schema=getData('schema.json'),
             fakedata=[response]
@@ -139,7 +139,7 @@ class QueueIndexerTests(TestCase):
             '"price": 42.0') > 0, '"price" data not found')
         # then only a subset...
         response = getData('add_response.txt')
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             self.mngr.getConnection(),
             schema=getData('schema.json'),
             fakedata=[response]
@@ -163,7 +163,7 @@ class QueueIndexerTests(TestCase):
                   timestamp=DateTime('May 11 1972 03:45 GMT'))
         response = getData('add_response.txt')
         # fake add response
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             self.mngr.getConnection(),
             schema=getData('schema.json'),
             fakedata=[response]
@@ -180,7 +180,7 @@ class QueueIndexerTests(TestCase):
                   timestamp=datetime(1980, 9, 29, 14, 02))
         response = getData('add_response.txt')
         # fake add response
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             self.mngr.getConnection(),
             schema=getData('schema.json'),
             fakedata=[response]
@@ -197,7 +197,7 @@ class QueueIndexerTests(TestCase):
                   cat='nerd', timestamp=date(1982, 8, 05))
         response = getData('add_response.txt')
         # fake add response
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             self.mngr.getConnection(),
             schema=getData('schema.json'),
             fakedata=[response]
@@ -212,7 +212,7 @@ class QueueIndexerTests(TestCase):
     def testReindexObject(self):
         response = getData('add_response.txt')
         # fake add response
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             self.mngr.getConnection(),
             schema=getData('schema.json'),
             fakedata=[response]
@@ -227,7 +227,7 @@ class QueueIndexerTests(TestCase):
     def testUnindexObject(self):
         response = getData('delete_response.txt')
         # fake response
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             self.mngr.getConnection(),
             schema=getData('schema.json'),
             fakedata=[response]
@@ -241,7 +241,7 @@ class QueueIndexerTests(TestCase):
     def testCommit(self):
         response = getData('commit_response.txt')
         # fake response
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             self.mngr.getConnection(),
             schema=getData('schema.json'),
             fakedata=[response]
@@ -255,7 +255,7 @@ class QueueIndexerTests(TestCase):
     def testNoIndexingWithoutAllRequiredFields(self):
         response = getData('dummy_response.txt')
         # fake add response
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             self.mngr.getConnection(),
             schema=getData('schema.json'),
             fakedata=[response]
@@ -277,7 +277,7 @@ class QueueIndexerTests(TestCase):
         foo = Bar(id='500', name='foo')
         # raising the exception should keep the attribute from being indexed
         response = getData('add_response.txt')
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             self.mngr.getConnection(),
             schema=getData('schema.json'),
             fakedata=[response]
@@ -314,14 +314,14 @@ class RobustnessTests(TestCase):
 
     def testIndexingWithUniqueKeyMissing(self):
         # fake schema response
-        fakesolrinterface(
+        fakesolrconnection(
             self.conn,
             schema=getData('simple_schema.json'),
         )
         # read and cache the schema
         self.mngr.getSchema()
         response = getData('add_response.txt')
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             self.conn,
             fakedata=[response]
         )
@@ -335,7 +335,7 @@ class RobustnessTests(TestCase):
 
     def testUnindexingWithUniqueKeyMissing(self):
         # fake schema response
-        fakesolrinterface(
+        fakesolrconnection(
             self.conn,
             schema=getData('simple_schema.json'),
         )
@@ -343,7 +343,7 @@ class RobustnessTests(TestCase):
         self.mngr.getSchema()
         response = getData('delete_response.txt')
         # fake delete response
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             self.conn,
             fakedata=[response]
         )
@@ -364,7 +364,7 @@ class FakeHTTPConnectionTests(TestCase):
 
     def testSingleRequest(self):
         mngr = SolrConnectionManager(active=True)
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             mngr.getConnection(),
             schema=getData('schema.json')
         )
@@ -377,7 +377,7 @@ class FakeHTTPConnectionTests(TestCase):
     def testTwoRequests(self):
         mngr = SolrConnectionManager(active=True)
         proc = SolrIndexProcessor(mngr)
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             mngr.getConnection(),
             schema=getData('schema.json'),
             fakedata=[
@@ -396,7 +396,7 @@ class FakeHTTPConnectionTests(TestCase):
     def testThreeRequests(self):
         mngr = SolrConnectionManager(active=True)
         proc = SolrIndexProcessor(mngr)
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             mngr.getConnection(),
             schema=getData('schema.json'),
             fakedata=[
@@ -419,7 +419,7 @@ class FakeHTTPConnectionTests(TestCase):
     def testFourRequests(self):
         mngr = SolrConnectionManager(active=True)
         proc = SolrIndexProcessor(mngr)
-        output = fakesolrinterface(
+        output = fakesolrconnection(
             mngr.getConnection(),
             schema=getData('schema.json'),
             fakedata=[
@@ -449,7 +449,7 @@ class FakeHTTPConnectionTests(TestCase):
         mngr = SolrConnectionManager(active=True)
         proc = SolrIndexProcessor(mngr)
         conn = mngr.getConnection()
-        output = fakesolrinterface(conn, schema=getData('schema.json'))
+        output = fakesolrconnection(conn, schema=getData('schema.json'))
         fakemore(conn, getData('add_response.txt'))
         proc.index(self.foo)
         fakemore(conn, getData('delete_response.txt'))
@@ -476,13 +476,13 @@ class ThreadedConnectionTests(TestCase):
         log = []
 
         def runner():
-            fakesolrinterface(mngr.getConnection(), schema=schema)
+            fakesolrconnection(mngr.getConnection(), schema=schema)
             # read and cache the schema
             mngr.getSchema()
             response = getData('add_response.txt')
             # fake add response
-            output = fakesolrinterface(mngr.getConnection(),
-                                       fakedata=[response])
+            output = fakesolrconnection(mngr.getConnection(),
+                                        fakedata=[response])
             # indexing sends data (???)
             proc.index(Foo(id='500', name='python test doc'))
             # commit sends data
@@ -501,7 +501,7 @@ class ThreadedConnectionTests(TestCase):
         thread.start()
         thread.join()
         conn = mngr.getConnection()             # get this thread's connection
-        fakesolrinterface(conn, schema=schema)  # fake schema response
+        fakesolrconnection(conn, schema=schema)  # fake schema response
         mngr.getSchema()                        # read and cache the schema
         mngr.closeConnection()
         mngr.setHost(active=False)

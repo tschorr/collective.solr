@@ -6,8 +6,7 @@ from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 from socket import error
 from sys import stderr
 from re import search
-from scorched.response import SolrResponse
-from scorched import SolrInterface
+from scorched.connection import SolrConnection
 from collective.solr.local import getLocal, setLocal
 from collective.solr import tests
 
@@ -38,137 +37,57 @@ def getData(filename):
     return open(filename, 'r').read().strip()
 
 
-def fakesolrinterface(solrconn, schema=None, fakedata=[]):
+def fakesolrconnection(solrconn, schema=None, fakedata=[], orig=None):
     """ helper function to set up a fake solr api on a SolrConnection """
     output = []
 
-    class FakeHTTPSolrInterface(SolrInterface):
+    class FakeSolrConnection(SolrConnection):
         _schema = None
 
-        def __init__(self, fakedata=[]):
+        def __init__(self, fakedata=[], orig=None):
             self.fakedata = fakedata
-
-        @property
-        def schema(self):
-            output.append(('schema', self._schema))
-            # self.fakedata.pop(0)
-            return self._schema
+            self.orig = orig
 
         def update(self, update_doc, **kwargs):
             output.append(update_doc)
 
-        # def add(self, docs):
-        #     output.append(('add', docs))
-        #     # self.fakedata.pop(0)
-        #
-        # def delete_by_ids(self, ids):
-        #     output.append(('delete_by_ids', ids))
-        #     # self.fakedata.pop(0)
-        #
-        # def commit(self, **kwargs):
-        #     output.append(('commit', kwargs or None))
-        #     # self.fakedata.pop(0)
+        def select(self, params):
+            output.append(('select', params))
+            return self.fakedata.pop(0)
 
-        def search(self, *args, **kwargs):
-            output.append(('search', (args, kwargs)))
-            if self.schema:
-                datefields = tuple(self._extract_datefields(self.schema))
+        def __getattr__(self, name):
+            if self.orig:
+                return getattr(self.orig, name)
             else:
-                datefields = tuple()
-            return SolrResponse.from_json(
-                self.fakedata.pop(0),
-                datefields=datefields
-            )
+                raise AttributeError(name)
 
-    solrconn.conn = FakeHTTPSolrInterface(fakedata)
+        # def search(self, *args, **kwargs):
+        #     output.append(('search', (args, kwargs)))
+        #     if self.schema:
+        #         datefields = tuple(self._extract_datefields(self.schema))
+        #     else:
+        #         datefields = tuple()
+        #     return SolrResponse.from_json(
+        #         self.fakedata.pop(0),
+        #         datefields=datefields
+        #     )
+    solrconn.api.conn = FakeSolrConnection(fakedata, orig=solrconn.api.conn)
+
     if schema:
         if isinstance(schema, basestring):
             schema = json.loads(schema)
-        solrconn.conn._schema = schema
+
+        def init_schema():
+            output.append(('schema', schema))
+            return schema
+        solrconn.api.init_schema = init_schema
     return output
-
-
-# OBSOLETED BY fakesolrinterface
-'''
-def fakehttp(solrconn, *fakedata):
-    """ helper function to set up a fake http request on a SolrConnection """
-
-    class FakeOutput(list):
-
-        """ helper class to organize output from fake connections """
-
-        conn = solrconn
-
-        def log(self, item):
-            self.current.append(item)
-
-        def get(self, skip=0):
-            self[:] = self[skip:]
-            return ''.join(self.pop(0)).replace('\r', '')
-
-        def new(self):
-            self.current = []
-            self.append(self.current)
-
-        def __len__(self):
-            self.conn.flush()   # send out all pending xml
-            return super(FakeOutput, self).__len__()
-
-        def __str__(self):
-            self.conn.flush()   # send out all pending xml
-            if self:
-                return ''.join(self[0]).replace('\r', '')
-            else:
-                return ''
-
-    output = FakeOutput()
-
-    class FakeSocket(StringIO):
-
-        """ helper class to fake socket communication """
-
-        def sendall(self, str):
-            output.log(str)
-
-        def makefile(self, mode, name):
-            return self
-
-        def read(self, amt=None):
-            if self.closed:
-                return ''
-            return StringIO.read(self, amt)
-
-        def readline(self, length=None):
-            if self.closed:
-                return ''
-            return StringIO.readline(self, length)
-
-    class FakeHTTPConnection(HTTPConnection):
-
-        """ helper class to fake a http connection object from httplib.py """
-
-        def __init__(self, host, *fakedata):
-            HTTPConnection.__init__(self, host)
-            self.fakedata = list(fakedata)
-
-        def putrequest(self, *args, **kw):
-            response = self.fakedata.pop(0)     # get first response
-            self.sock = FakeSocket(response)    # and set up a fake socket
-            output.new()                        # as well as an output buffer
-            HTTPConnection.putrequest(self, *args, **kw)
-
-        def setTimeout(self, timeout):
-            pass
-
-    solrconn.conn = FakeHTTPConnection(solrconn.conn.host, *fakedata)
-    return output
-'''
 
 
 def fakemore(solrconn, *fakedata):
     """ helper function to add more fake http requests to a SolrConnection """
-    assert hasattr(solrconn.conn, 'fakedata')   # `isinstance()` doesn't work?
-    solrconn.conn.fakedata.extend(fakedata)
+    assert hasattr(solrconn.api.conn, 'fakedata')
+    solrconn.api.conn.fakedata.extend(fakedata)
 
 
 def fakeServer(actions, port=55555):

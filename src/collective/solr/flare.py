@@ -78,14 +78,14 @@ class PloneFlare(AttrDict):
         created = self.get('created', None)
         if created is None:
             return 'n.a.'
-        return created.toZone(timezone).ISO8601()
+        return DateTime(created).toZone(timezone).ISO8601()
 
     @property
     def ModificationDate(self):
         modified = self.get('modified', None)
         if modified is None:
             return 'n.a.'
-        return modified.toZone(timezone).ISO8601()
+        return DateTime(modified).toZone(timezone).ISO8601()
 
     @property
     def data_record_normalized_score_(self):

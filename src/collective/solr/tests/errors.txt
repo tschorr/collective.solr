@@ -65,7 +65,7 @@ and telling it that it's okay (by means of status code 200). This way the
 intended error message is returned and we can continue the test:
 
   >>> from ZPublisher import HTTPResponse
-  >>> HTTPResponse.status_codes['error'] = 200
+  >>> HTTPResponse.status_codes['solrexception'] = 200
   >>> import transaction
   >>> transaction.commit()
   >>> browser = Browser(layer['app'])
@@ -98,7 +98,7 @@ timeout error is provoked:
   >>> def action(handler):
   ...   sleep(3)
   >>> thread = fakeServer([action, action], port=55555)
-  >>> getUtility(ISolrConnectionConfig).search_timeout = 2
+  >>> getUtility(ISolrConnectionConfig).search_timeout = 2.0
   >>> transaction.commit()
 
 And try the search again:

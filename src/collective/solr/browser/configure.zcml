@@ -24,7 +24,7 @@
 
   <browser:page
       name="index.html"
-      for="socket.error"
+      for="collective.solr.solr.SolrException"
       template="errors.pt"
       class=".errors.ErrorView"
       permission="zope2.Public" />
