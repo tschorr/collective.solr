@@ -108,7 +108,7 @@ class TestSolr(TestCase):
         # self.assertEqual(normalize(output.get()), normalize(search_request))
         output[0] = list(output[0])
         output[0][1] = [list(i) for i in output[0][1]]
-        self.assertEqual(output, json.loads(search_request))
+        self.assertEqual(output[0], json.loads(search_request))
         # self.failUnless(res.find(('.//doc')))
         self.assertEqual(len(res.results()), 1)
 

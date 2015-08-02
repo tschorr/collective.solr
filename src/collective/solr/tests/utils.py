@@ -73,14 +73,15 @@ def fakesolrconnection(solrconn, schema=None, fakedata=[], orig=None):
         #     )
     solrconn.api.conn = FakeSolrConnection(fakedata, orig=solrconn.api.conn)
 
-    if schema:
-        if isinstance(schema, basestring):
-            schema = json.loads(schema)
+    if not schema:
+        schema = getData('simple_schema.json')
+    if isinstance(schema, basestring):
+        schema = json.loads(schema)
 
-        def init_schema():
-            output.append(('schema', schema))
-            return schema
-        solrconn.api.init_schema = init_schema
+    def init_schema():
+        output.append(('schema', schema))
+        return schema
+    solrconn.api.init_schema = init_schema
     return output
 
 
