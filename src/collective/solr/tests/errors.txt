@@ -65,7 +65,8 @@ and telling it that it's okay (by means of status code 200). This way the
 intended error message is returned and we can continue the test:
 
   >>> from ZPublisher import HTTPResponse
-  >>> HTTPResponse.status_codes['solrexception'] = 200
+  >>> HTTPResponse.status_codes['connectionerror'] = 200
+  >>> HTTPResponse.status_codes['readtimeout'] = 200
   >>> import transaction
   >>> transaction.commit()
   >>> browser = Browser(layer['app'])

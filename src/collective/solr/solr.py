@@ -2,6 +2,7 @@
 import json
 import logging
 import scorched
+import requests
 import warnings
 from collective.solr.parser import SolrSchema
 from collective.solr.parser import SolrResponse
@@ -60,8 +61,25 @@ def select(self, params):
 scorched.connection.SolrConnection.select = select
 
 
-class SolrException(scorched.exc.SolrError, IOError):
+class SolrException:
     """ An exception thrown by solr connections """
+    def __init__(self, baseException):
+        self.__class__ = type(baseException.__class__.__name__,
+                              (self.__class__, baseException.__class__),
+                              {})
+        self.__dict__ = baseException.__dict__
+
+
+class SolrError(SolrException, scorched.exc.SolrError):
+    """ """
+
+
+class SolrTimeout(SolrException, requests.exceptions.Timeout):
+    """ """
+
+
+class SolrConnectionError(SolrException, requests.exceptions.ConnectionError):
+    """ """
 
 
 class SolrAPI(scorched.SolrInterface):
@@ -209,12 +227,18 @@ class SolrConnection:
 
     def search(self, **params):
         logger.debug('sending request: %r', params)
+        # TODO: retry ???
         try:
             return SolrResponse(self.api.search(**params))
-        except (scorched.exc.SolrError, IOError) as e:
+        except scorched.exc.SolrError as e:
             logger.exception('exception during search request %r', params)
-            # TODO: retry ???
-            raise SolrException(e)
+            raise SolrError(e)
+        except requests.exceptions.ConnectionError as e:
+            logger.exception('exception during search request %r', params)
+            raise SolrConnectionError(e)
+        except requests.exceptions.Timeout as e:
+            logger.exception('exception during search request %r', params)
+            raise SolrTimeout(e)
 
 # -- OBSOLETED --
 

@@ -963,6 +963,8 @@ class SolrServerTests(TestCase):
         path = '/'.join(folder.getPhysicalPath())
         self.assertEqual(flare.Title, 'Foo')
         self.assertEqual(flare.getObject(), folder)
+        # TODO: test restricted/unrestricted getObject
+        self.assertEqual(flare._unrestrictedGetObject(), folder)
         self.assertEqual(flare.getPath(), path)
         self.assertTrue(flare.getURL().startswith('http://'))
         self.assertEqual(flare.getURL(), folder.absolute_url())
@@ -971,6 +973,7 @@ class SolrServerTests(TestCase):
         self.assertTrue(flare.getURL().endswith(flare.getURL(relative=True)))
         self.assertEqual(flare.getId, folder.getId())
         self.assertEqual(flare.id, folder.getId())
+        self.assertTrue(isinstance(flare.getRID(), int))
 
     def testWildcardSearches(self):
         self.maintenance.reindex()

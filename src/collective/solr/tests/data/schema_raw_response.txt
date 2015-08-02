@@ -1,0 +1,51 @@
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=UTF-8
+Content-Length: 917
+Server: Jetty(6.1.3)
+
+{
+  "responseHeader":{
+    "status":0,
+    "QTime":84
+  },
+  "schema": {
+    "name": "example",
+    "fields": [
+        {
+            "name": "id",
+            "type": "string",
+            "indexed": true,
+            "stored": true,
+            "required": true
+        },
+        {
+            "name": "name",
+            "type": "string",
+            "indexed": true,
+            "stored": true,
+            "required": true
+        },
+        {
+            "name": "age",
+            "type": "integer",
+            "indexed": true,
+            "stored": true
+        }
+    ],
+    "fieldTypes": [
+        {
+            "name": "string",
+            "class": "solr.StrField",
+            "sortMissingLast": true,
+            "omitNorms": true
+        },
+        {
+            "name": "integer",
+            "class": "solr.IntField",
+            "omitNorms": true
+        }
+    ],
+    "dynamicFields": [
+    ]
+  }
+}

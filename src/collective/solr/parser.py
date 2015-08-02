@@ -95,9 +95,7 @@ class SolrResponse(object):
 
     __allow_access_to_unprotected_subobjects__ = True
 
-    def __init__(self, data=None, unmarshallers=None):
-        if unmarshallers:
-            logger.warning('unmarshallers not used')
+    def __init__(self, data=None):
         if data is not None:
             self.parse(data)
 

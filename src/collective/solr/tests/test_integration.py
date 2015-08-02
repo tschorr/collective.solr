@@ -10,14 +10,15 @@ from collective.solr.interfaces import ISolrIndexQueueProcessor
 from collective.solr.interfaces import IZCMLSolrConnectionConfig
 from collective.solr.mangler import mangleQuery
 from collective.solr.testing import COLLECTIVE_SOLR_FUNCTIONAL_TESTING
-# from collective.solr.tests.utils import fakeServer
+from collective.solr.tests.utils import fakeServer
 from collective.solr.tests.utils import fakesolrconnection
 from collective.solr.tests.utils import getData
 from plone.app.testing import TEST_USER_ID
 from plone.app.testing import setRoles
 # from socket import error
 # from socket import timeout
-# from time import sleep
+from requests.exceptions import Timeout as timeout
+from time import sleep
 from transaction import commit
 from unittest import TestCase
 from unittest import defaultTestLoader
@@ -181,30 +182,38 @@ class SiteSearchTests(TestCase):
 #        request = dict(SearchableText='foo')
 #        self.assertRaises(error, query, request)
 
-    # def testSearchTimeout(self):
-    #     config = queryUtility(ISolrConnectionConfig)
-    #     config.active = True
-    #     config.search_timeout = 2   # specify the timeout
-    #     config.port = 55555         # don't let the real solr disturb us
-    #
-    #     def quick(handler):         # set up fake http response
-    #         sleep(0.5)              # and wait a bit before sending it
-    #         handler.send_response(200, getData('search_response.txt'))
-    #
-    #     def slow(handler):          # set up another http response
-    #         sleep(3)                # but wait longer before sending it
-    #         handler.send_response(200, getData('search_response.txt'))
-    #     # We need a third handler, as the second one will timeout, which causes  # NOQA
-    #     # the SolrConnection.doPost method to catch it and try to reconnect.
-    #     thread = fakeServer([quick, slow, slow], port=55555)
-    #     search = queryUtility(ISearch)
-    #     search('foo')               # the first search should succeed
-    #     try:
-    #         self.assertRaises(timeout, search, 'foo')   # but not the second
-    #     finally:
-    #         thread.join()           # the server thread must always be joined
+    def testSearchTimeout(self):
+        mngr = queryUtility(ISolrConnectionManager)
+        mngr.getSchema()   # read and cache the schema
+        config = queryUtility(ISolrConnectionConfig)
+        config.active = True
+        config.search_timeout = 2   # specify the timeout
+        config.port = 55555         # don't let the real solr disturb us
 
-    # TODO:
+        def fake_handler(handler):         # set up fake http response
+            if handler.path.startswith('/solr/select'):
+                handler.send_response(200, getData('search_raw_response.txt'))
+            elif handler.path.startswith('/solr/schema'):
+                handler.send_response(200, getData('schema_raw_response.txt'))
+
+        def quick(handler):         # set up fake http response
+            sleep(0.5)              # and wait a bit before sending it
+            fake_handler(handler)
+
+        def slow(handler):          # set up another http response
+            sleep(3)                # but wait longer before sending it
+            fake_handler(handler)
+        # We need a third handler, as the second one will timeout, which causes
+        # the SolrConnection.doPost method to catch it and try to reconnect.
+        thread = fakeServer([quick, slow, slow], port=55555)
+        search = queryUtility(ISearch)
+        search('foo')               # the first search should succeed
+        try:
+            self.assertRaises(timeout, search, 'foo')   # but not the second
+        finally:
+            thread.join()           # the server thread must always be joined
+
+    # break SOLR 1.2 compatibility
     # def testSchemaUrlFallback(self):
     #     config = queryUtility(ISolrConnectionConfig)
     #     config.active = True

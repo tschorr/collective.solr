@@ -23,9 +23,9 @@ class ErrorView(BrowserView):
         type_ = str(self.exception.__class__)
         if '<class' in type_:
             type_ = type_.replace("<class '", "").replace("'>", '')
-        if repr(self.exception.args).startswith('(ConnectionError('):
+        if type_ == 'collective.solr.solr.ConnectionError':
             type_ = 'socket.error'
-        elif repr(self.exception.args).startswith('(ReadTimeout('):
+        if type_ == 'collective.solr.solr.ReadTimeout':
             type_ = 'socket.timeout'
         return {
             'type': type_,
