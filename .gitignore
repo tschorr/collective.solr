@@ -3,11 +3,13 @@ build
 develop-eggs
 dist
 downloads
+download-cache
 eggs
 extras/*
 include
 lib
 lib64
+local
 parts
 htmlcov
 var
@@ -19,3 +21,4 @@ var
 .Python
 pip-selfcheck.json
 .idea
+.coverage
