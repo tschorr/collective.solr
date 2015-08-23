@@ -10,6 +10,7 @@ from zope.component import queryAdapter, adapts
 from zope.interface import implements
 from zope.interface import Interface
 from ZODB.POSException import ConflictError
+from ZODB.interfaces import BlobError
 from Products.CMFCore.utils import getToolByName
 from Products.CMFCore.CMFCatalogAware import CMFCatalogAware
 from Products.Archetypes.CatalogMultiplex import CatalogMultiplex
@@ -29,8 +30,6 @@ from collective.solr.interfaces import ISolrAddHandler
 from collective.solr.solr import SolrException
 from collective.solr.utils import prepareData
 from socket import error
-from urllib import urlencode
-
 
 logger = getLogger('collective.solr.indexer')
 
@@ -118,43 +117,23 @@ class BinaryAdder(DefaultAdder):
     def getpath(self):
         field = self.context.getPrimaryField()
         blob = field.get(self.context).blob
-        return blob.committed() or blob._p_blob_committed or \
-            blob._p_blob_uncommitted
-
-    def __call__(self, conn, **data):
-        if 'ZOPETESTCASE' in os.environ:
-            return super(BinaryAdder, self).__call__(conn, **data)
-        ignore = ('SearchableText', 'created', 'Type', 'links',
-                  'description', 'Date')
-        postdata = {}
-        for key, val in data.iteritems():
-            if key in ignore:
-                continue
-            if isinstance(val, list) or isinstance(val, tuple):
-                newvalue = []
-                for item in val:
-                    if isinstance(item, unicode):
-                        item = item.encode('utf-8')
-                    newvalue.append(item)
-            else:
-                newvalue = val
-            postdata['literal.%s' % key] = newvalue
-        postdata['stream.file'] = self.getpath()
-        postdata['stream.contentType'] = data.get(
-            'content_type',
-            'application/octet-stream'
-        )
-        postdata['fmap.content'] = 'SearchableText'
-        postdata['extractFormat'] = 'text'
-
-        url = '%s/update/extract' % conn.solrBase
-
         try:
-            conn.doPost(url, urlencode(postdata, doseq=True), conn.formheaders)
-            conn.flush()
-        except SolrException, e:
-            logger.warn('Error %s @ %s', e, data['path_string'])
-            conn.reset()
+            committed = blob.committed()
+        except BlobError:
+            committed = None
+        return committed or blob._p_blob_committed or blob._p_blob_uncommitted
+
+    # we can't really index here because we are in the middle of transaction,
+    # so better to add data to queue (see #65)
+    # TODO: postpone extract at time of flushing queue for better performance
+    def __call__(self, conn, **data):
+        # we must not skip tests ...
+        # if 'ZOPETESTCASE' in os.environ:
+        #    return super(BinaryAdder, self).__call__(conn, **data)
+        logger.debug('extract %s (%s)',
+                     self.getpath(), os.path.getsize(self.getpath()))
+        data['SearchableText'] = conn.api.extract(path=self.getpath())
+        return super(BinaryAdder, self).__call__(conn, **data)
 
 
 def boost_values(obj, data):

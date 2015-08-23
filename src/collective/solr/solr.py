@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import logging
+import os
 import scorched
 import requests
 import warnings
@@ -11,7 +12,8 @@ logger = logging.getLogger(__name__)
 marker = []
 
 
-# BBB: Monkeypatch, wait for https://github.com/lugensa/scorched/pull/11
+# Monkeypatch, wait for https://github.com/lugensa/scorched/pull/11
+# UPDATE: PR merged wait for scorched 0.8 release
 def solr_date_init(self, v):
     if isinstance(v, scorched.dates.solr_date):
         self._dt_obj = v._dt_obj
@@ -25,7 +27,8 @@ def solr_date_init(self, v):
 scorched.dates.solr_date.__init__ = solr_date_init
 
 
-# BBB: Monkeypatch, wait for https://github.com/lugensa/scorched/pull/14
+# Monkeypatch, wait for https://github.com/lugensa/scorched/pull/14
+# UPDATE: PR merged wait for scorched 0.8 release
 def select(self, params):
     """
     :param params: LuceneQuery converted to a dictionary with search
@@ -39,6 +42,7 @@ def select(self, params):
     params.append(('wt', 'json'))
     qs = scorched.compat.urlencode(params)
     url = "%s?%s" % (self.select_url, qs)
+    logger.info('solr %s', url)
     if len(url) > self.max_length_get_url:
         warnings.warn(
             "Long query URL encountered - POSTing instead of "
@@ -115,52 +119,46 @@ class SolrAPI(scorched.SolrInterface):
         """ set a timeout value for the currently open connection """
         self.conn.search_timeout = search_timeout
 
+    def extract(self, path):
+        """ extract text from file using tika
+            TODO: evalute PR on https://github.com/lugensa/scorched
+        """
+        size = os.path.getsize(path)
+        if size == 0:
+            logger.warning('extract empty file %s', path)
+            return u''
+        url = self.conn.url + 'update/extract'
+        params = {'wt': 'json', 'extractOnly': 'true', 'extractFormat': 'text'}
+        files = {'file': open(path, 'rb')}
+        filename = os.path.basename(path)
+        response = self.conn.request('POST', url, params=params, files=files)
+        if response.status_code != 200:
+            raise scorched.exc.SolrError(response)
+        # TODO: getting metadata
+        # response.json()[filename + "_metadata"]
+        return response.json()[filename]
+
 
 class SolrConnection:
 
     def __init__(self, host='localhost:8983', solrBase='/solr',
                  persistent=True, search_timeout=()):
-        self.host = host
-        self.solrBase = str(solrBase)
-        self.persistent = persistent
-        self.reconnects = 0
-        # self.encoder = codecs.getencoder('utf-8')
-        # responses from Solr will always be in UTF-8
-        # self.decoder = codecs.getdecoder('utf-8')
-
+        # TODO: persistent param unused
         if not host.startswith('http'):
             host = "http://{}".format(host)
-        self.api = SolrAPI('{}{}'.format(host, solrBase),
+        self.host = host
+        self.solrBase = str(solrBase)
+        self.api = SolrAPI('%s%s' % (host, solrBase),
                            search_timeout=search_timeout)
         self._queue = []  # was xmlbody
 
-        # self.conn.set_debuglevel(1000000)
-        # self.xmlbody = []
-        # self.xmlheaders = {'Content-Type': 'text/xml; charset=utf-8'}
-        # self.xmlheaders.update(postHeaders)
-        # if not self.persistent:
-        #    self.xmlheaders['Connection'] = 'close'
-        # self.formheaders = {
-        #    'Content-Type': 'application/x-www-form-urlencoded; charset=utf-8'
-        # }
-        # if not self.persistent:
-        #    self.formheaders['Connection'] = 'close'
-
     def __str__(self):
-        return (
-            'SolrConnection{host=%s, solrBase=%s, persistent=%s, '
-            'postHeaders=%s, reconnects=%s}' % (
-                self.host,
-                self.solrBase,
-                self.persistent,
-                'unused',  # self.xmlheaders,
-                self.reconnects
-            )
-        )
+        return 'SolrConnection{host=%s, solrBase=%s}' % \
+               (self.host, self.solrBase)
 
     def close(self):
         # self.conn.close()
-        logger.warning('NOT IMPLEMENTED - close connection on %r', self)
+        logger.debug('NOT IMPLEMENTED - close connection on %r', self)
 
     def setTimeout(self, search_timeout):
         """ set a timeout value for the currently open connection """
@@ -202,11 +200,47 @@ class SolrConnection:
         self._queue.append((cmd, kwargs))
         return self.flush()
 
-    def flush(self):
-        """ send out the stored requests to solr """
+    def optimizeQueue(self):
+        """ experimental """
+        queue = []  # list of tuple (id, cmd, kwargs)
+        ops = {}
+        for cmd, kwargs in self._queue:
+            currentid = None
+            if cmd == 'add':
+                # TODO: make uniqueKey/UID more generic
+                currentid = kwargs.get('doc', {}).get('UID', None)
+            elif cmd == 'delete':
+                # TODO: deletebyQuery not implemented
+                currentid = kwargs.get('id', None)
+            logger.debug('check optimization for cmd:%s id:%s - %r',
+                         cmd, currentid, str(kwargs)[:60])
+            if not currentid:
+                queue.append((cmd, kwargs))
+            else:
+                if ops.get(currentid) is not None:
+                    logger.debug('mark as deleted idx:%d cmd:%s id:%s - %r',
+                                 ops.get(currentid),
+                                 queue[ops.get(currentid)][0],
+                                 currentid,
+                                 str(queue[ops.get(currentid)][1])[:60])
+                    queue[ops.get(currentid)] = ('__deleted__', None)
+                ops[currentid] = len(queue)
+                queue.append((cmd, kwargs))
+        self._queue = [(cmd, kwargs) for cmd, kwargs in queue
+                       if cmd != '__deleted__']
+
+    def flush(self, optimize=True):
+        """ send out the stored requests to solr
+        """
         jsoncmds = []
+        if optimize:
+            self.optimizeQueue()  # experimental queue optimization
         for cmd, kwargs in self._queue:
             jsoncmds.append('"%s": %s' % (cmd, json.dumps(kwargs)))
+            logger.debug(
+                'flush cmd %s (%d bytes) - %r',
+                cmd, len(json.dumps(kwargs)), str(kwargs)[:60]
+            )
         jsonbody = '{%s}' % ','.join(jsoncmds)
         try:
             # TODO: scorched's update doesn't return any value
@@ -215,8 +249,8 @@ class SolrConnection:
             logger.exception('exception during request %s', jsonbody)
             response = None
         logger.debug(
-            'flushed out %d bytes in %d requests',
-            len(jsonbody), len(self._queue)
+            'flushed out %d bytes in %d requests, solr response %r',
+            len(jsonbody), len(self._queue), response
         )
         del self._queue[:]
         return response

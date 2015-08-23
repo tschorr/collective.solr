@@ -256,7 +256,7 @@ class ZCMLSetupTests(TestCase):
         manager = queryUtility(ISolrConnectionManager)
         manager.setHost(active=True)        # also clears connection cache
         connection = manager.getConnection()
-        self.assertEqual(connection.host, '127.0.0.23:3898')
+        self.assertEqual(connection.host, 'http://127.0.0.23:3898')
         self.assertEqual(connection.solrBase, '/foo')
 
 
