@@ -41,7 +41,7 @@ setup(
     platforms='Any',
     zip_safe=False,
     install_requires=[
-        'scorched',
+        'scorched>=0.8',
         'Acquisition',
         'DateTime',
         'Plone >= 4.1',

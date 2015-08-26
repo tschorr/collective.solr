@@ -12,59 +12,6 @@ logger = logging.getLogger(__name__)
 marker = []
 
 
-# Monkeypatch, wait for https://github.com/lugensa/scorched/pull/11
-# UPDATE: PR merged wait for scorched 0.8 release
-def solr_date_init(self, v):
-    if isinstance(v, scorched.dates.solr_date):
-        self._dt_obj = v._dt_obj
-    elif isinstance(v, scorched.compat.basestring):
-        self._dt_obj = scorched.dates.datetime_from_w3_datestring(v)
-    elif hasattr(v, "strftime"):
-        self._dt_obj = self.from_date(v)
-    else:
-        raise scorched.exc.SolrError(
-            "Cannot initialize solr_date from %s object" % type(v))
-scorched.dates.solr_date.__init__ = solr_date_init
-
-
-# Monkeypatch, wait for https://github.com/lugensa/scorched/pull/14
-# UPDATE: PR merged wait for scorched 0.8 release
-def select(self, params):
-    """
-    :param params: LuceneQuery converted to a dictionary with search
-                   queries
-    :type params: dict
-    :returns: json -- json string
-    We perform here a search on the `select` handler of solr.
-    """
-    if not self.readable:
-        raise TypeError("This Solr instance is only for writing")
-    params.append(('wt', 'json'))
-    qs = scorched.compat.urlencode(params)
-    url = "%s?%s" % (self.select_url, qs)
-    logger.info('solr %s', url)
-    if len(url) > self.max_length_get_url:
-        warnings.warn(
-            "Long query URL encountered - POSTing instead of "
-            "GETting. This query will not be cached at the HTTP layer")
-        url = self.select_url
-        method = 'POST'
-        kwargs = {
-            'data': qs,
-            'headers': {
-                "Content-Type": "application/x-www-form-urlencoded"}}
-    else:
-        method = 'GET'
-        kwargs = {}
-    if self.search_timeout:
-        kwargs['timeout'] = self.search_timeout
-    response = self.request(method, url, **kwargs)
-    if response.status_code != 200:
-        raise scorched.exc.SolrError(response)
-    return response.text
-scorched.connection.SolrConnection.select = select
-
-
 class SolrException:
     """ An exception thrown by solr connections """
     def __init__(self, baseException):
