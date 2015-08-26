@@ -22,6 +22,7 @@ before_install:
 install:
   - sed -ie "s#plone-x.x.x.cfg#plone-$PLONE_VERSION.cfg#" travis.cfg
   - sed -ie "s#solr-x.x.x.cfg#solr-$SOLR_VERSION.cfg#" travis.cfg
+  - bin/buildout -N -t 20 -c travis.cfg install solr-download
   - bin/buildout -N -t 20 -c travis.cfg
 script:
   - bin/code-analysis
