@@ -4,7 +4,6 @@ import logging
 import os
 import scorched
 import requests
-import warnings
 from collective.solr.parser import SolrSchema
 from collective.solr.parser import SolrResponse
 
