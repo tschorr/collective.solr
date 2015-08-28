@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys
+import Missing
 from zope.interface import implements
 from zope.component import adapts
 from zope.component.hooks import getSite
@@ -76,6 +77,8 @@ class PloneFlare(AttrDict):
     @property
     def CreationDate(self):
         created = self.get('created', None)
+        if created is Missing.Value:
+            return created
         if created is None:
             return 'n.a.'
         return DateTime(created).toZone(timezone).ISO8601()
@@ -83,6 +86,8 @@ class PloneFlare(AttrDict):
     @property
     def ModificationDate(self):
         modified = self.get('modified', None)
+        if modified is Missing.Value:
+            return modified
         if modified is None:
             return 'n.a.'
         return DateTime(modified).toZone(timezone).ISO8601()
@@ -90,7 +95,9 @@ class PloneFlare(AttrDict):
     @property
     def data_record_normalized_score_(self):
         score = self.get('score', None)
-        if score is None:
+        if score is Missing.Value:
+            return score
+        if score is None or score is Missing.Value:
             return 'n.a.'
         return '%.1f' % (float(score) * 100)
 
