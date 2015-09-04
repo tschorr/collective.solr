@@ -1,7 +1,7 @@
 Changelog
 =========
 
-4.1.1 (unreleased)
+5.0 (unreleased)
 ------------------
 
 - solr.cfg has been moved from https://github.com/collective/collective.solr/raw/master/buildout/solr.cfg to https://github.com/collective/collective.solr/raw/master/solr.cfg.
@@ -19,6 +19,8 @@ Changelog
 - Use GET method in spell check request (as it's an idempotent request which
   does not affect server state)
   [reinhardt]
+- Plone 5 compatbility
+  [tomgross]
 
 
 4.1.0 (2015-02-19)
