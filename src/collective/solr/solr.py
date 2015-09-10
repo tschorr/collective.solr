@@ -134,6 +134,13 @@ class SolrAPI(scorched.SolrInterface):
         # response.json()[filename + "_metadata"]
         return response.json()[filename]
 
+    def spell(self, **params):
+        url = self.conn.url + 'spell'
+        response = self.conn.request('GET', url, params=params)
+        if response.status_code != 200:
+            raise scorched.exc.SolrError(response)
+        return response.json()
+
 
 class SolrConnection:
 
@@ -268,6 +275,21 @@ class SolrConnection:
             raise SolrConnectionError(e)
         except requests.exceptions.Timeout as e:
             logger.exception('exception during search request %r', params)
+            raise SolrTimeout(e)
+
+    def spell(self, **params):
+        logger.debug('sending spell request: %r', params)
+        # TODO: retry ???
+        try:
+            return self.api.spell(**params)
+        except scorched.exc.SolrError as e:
+            logger.exception('exception during spell request %r', params)
+            raise SolrError(e)
+        except requests.exceptions.ConnectionError as e:
+            logger.exception('exception during spell request %r', params)
+            raise SolrConnectionError(e)
+        except requests.exceptions.Timeout as e:
+            logger.exception('exception during spell request %r', params)
             raise SolrTimeout(e)
 
 
