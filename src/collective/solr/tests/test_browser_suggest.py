@@ -12,10 +12,12 @@ import json
 import unittest2 as unittest
 
 
-class MockResponse():
+class MockConnection():
 
-    def read(self):
-        result = {
+    solrBase = '/solr'
+
+    def spell(self, **params):
+        return {
             "responseHeader": {"status": 0, "QTime": 4},
             "response": {
                 "numFound": 0,
@@ -48,18 +50,6 @@ class MockResponse():
                 ]
             }
         }
-        return json.dumps(result)
-
-
-class MockConnection():
-
-    solrBase = '/solr'
-
-    def doPost(self, url, foo, bar):
-        return MockResponse()
-
-    def doGet(self, url, bar):
-        return MockResponse()
 
 
 class MockSolrConnectionManager():
