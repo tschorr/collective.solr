@@ -281,9 +281,8 @@ class SolrConnection:
     def doAction(self, action, **params):
         # TODO: retry ???
         logger.debug('sending %s request: %r', action, params)
-        getattr(self.api, action)(**params)
         try:
-            return self.api.spell(**params)
+            return getattr(self.api, action)(**params)
         except scorched.exc.SolrError as e:
             logger.exception('exception during %s request %r', action, params)
             raise SolrError(e)
