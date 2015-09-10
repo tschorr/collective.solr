@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import fnmatch
 import json
 import logging
 import os
@@ -9,6 +10,55 @@ from collective.solr.parser import SolrResponse
 
 logger = logging.getLogger(__name__)
 marker = []
+
+
+# BEGIN https://github.com/lugensa/scorched/pull/16
+
+
+def is_datetime_field(name, datefields):
+    if name in datefields:
+        return True
+    for fieldpattern in [d for d in datefields if '*' in d]:
+        # XXX: there is better than fnmatch ?
+        if fnmatch.fnmatch(name, fieldpattern):
+            return True
+    return False
+
+
+def _extract_datefields(self, schema):
+    ret = [x['name'] for x in schema['fields'] if x['type'] == 'date']
+    ret.extend([x['name'] for x in schema['dynamicFields']
+                if x['type'] == 'date'])
+    return ret
+scorched.connection.SolrInterface._extract_datefields = _extract_datefields
+
+
+def solrinterface_prepare_docs(self, docs):
+    prepared_docs = []
+    for doc in docs:
+        new_doc = {}
+        for name, value in list(doc.items()):
+            # XXX remove all None fields this is needed for adding date
+            # fields
+            if value is None:
+                continue
+            if is_datetime_field(name, self._datefields):
+                value = str(scorched.dates.solr_date(value))
+            new_doc[name] = value
+        prepared_docs.append(new_doc)
+    return prepared_docs
+scorched.connection.SolrInterface._prepare_docs = solrinterface_prepare_docs
+
+
+def solrresult_prepare_docs(self, docs, datefields):
+    for doc in docs:
+        for name, value in list(doc.items()):
+            if is_datetime_field(name, datefields):
+                doc[name] = scorched.dates.solr_date(value)._dt_obj
+    return docs
+scorched.response.SolrResult._prepare_docs = solrresult_prepare_docs
+
+# END https://github.com/lugensa/scorched/pull/16
 
 
 class SolrException:
@@ -206,7 +256,7 @@ class SolrConnection:
         del self._queue[:]
 
     def search(self, **params):
-        logger.debug('sending request: %r', params)
+        logger.debug('sending search request: %r', params)
         # TODO: retry ???
         try:
             return SolrResponse(self.api.search(**params))
@@ -219,6 +269,7 @@ class SolrConnection:
         except requests.exceptions.Timeout as e:
             logger.exception('exception during search request %r', params)
             raise SolrTimeout(e)
+
 
 # -- OBSOLETED --
 
