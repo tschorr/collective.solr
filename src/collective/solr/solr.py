@@ -141,6 +141,13 @@ class SolrAPI(scorched.SolrInterface):
             raise scorched.exc.SolrError(response)
         return response.json()
 
+    def autocomplete(self, **params):
+        url = self.conn.url + 'autocomplete'
+        response = self.conn.request('GET', url, params=params)
+        if response.status_code != 200:
+            raise scorched.exc.SolrError(response)
+        return response.json()
+
 
 class SolrConnection:
 
@@ -263,33 +270,28 @@ class SolrConnection:
         del self._queue[:]
 
     def search(self, **params):
-        logger.debug('sending search request: %r', params)
-        # TODO: retry ???
-        try:
-            return SolrResponse(self.api.search(**params))
-        except scorched.exc.SolrError as e:
-            logger.exception('exception during search request %r', params)
-            raise SolrError(e)
-        except requests.exceptions.ConnectionError as e:
-            logger.exception('exception during search request %r', params)
-            raise SolrConnectionError(e)
-        except requests.exceptions.Timeout as e:
-            logger.exception('exception during search request %r', params)
-            raise SolrTimeout(e)
+        return SolrResponse(self.doAction('search', **params))
 
     def spell(self, **params):
-        logger.debug('sending spell request: %r', params)
+        return self.doAction('spell', **params)
+
+    def autocomplete(self, **params):
+        return self.doAction('autocomplete', **params)
+
+    def doAction(self, action, **params):
         # TODO: retry ???
+        logger.debug('sending %s request: %r', action, params)
+        getattr(self.api, action)(**params)
         try:
             return self.api.spell(**params)
         except scorched.exc.SolrError as e:
-            logger.exception('exception during spell request %r', params)
+            logger.exception('exception during %s request %r', action, params)
             raise SolrError(e)
         except requests.exceptions.ConnectionError as e:
-            logger.exception('exception during spell request %r', params)
+            logger.exception('exception during %s request %r', action, params)
             raise SolrConnectionError(e)
         except requests.exceptions.Timeout as e:
-            logger.exception('exception during spell request %r', params)
+            logger.exception('exception during %s request %r', action, params)
             raise SolrTimeout(e)
 
 

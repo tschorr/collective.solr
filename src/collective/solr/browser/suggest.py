@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import json
-import urllib
 
 from collective.solr.interfaces import ISolrConnectionManager
 from Products.Five.browser import BrowserView
@@ -68,10 +67,7 @@ class AutocompleteView(BrowserView):
         params['q'] = term
         params['wt'] = 'json'
 
-        params = urllib.urlencode(params, doseq=True)
-        response = connection.doPost(
-            connection.solrBase + '/autocomplete?' + params, '', {})
-        results = json.loads(response.read())
+        results = connection.autocomplete(params)
 
         if 'grouped' not in results:
             return json.dumps([])
